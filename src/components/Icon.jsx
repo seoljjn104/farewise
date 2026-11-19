@@ -149,6 +149,20 @@ const P = {
     </>
   ),
   circle: <circle cx="12" cy="12" r="8" />,
+  download: (
+    <>
+      <path d="M12 3v11" />
+      <path d="m7.5 9.5 4.5 4.5 4.5-4.5" />
+      <path d="M4.5 20.5h15" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 20.5V9.5" />
+      <path d="m7.5 14 4.5-4.5 4.5 4.5" />
+      <path d="M4.5 3.5h15" />
+    </>
+  ),
   more: (
     <>
       <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />

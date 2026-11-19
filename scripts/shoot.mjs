@@ -175,7 +175,26 @@ const SHOTS = [
     reportCheck: true,
   },
   {
-    name: '22-trips-empty',
+    name: '22-more-data',
+    hash: '#/more',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    moreCheck: true,
+    scrollToText: 'Export JSON',
+  },
+  {
+    name: '23-more-lower',
+    hash: '#/more',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    scrollToText: 'About',
+  },
+  {
+    name: '24-trips-empty',
     hash: '#/trips',
     w: 390,
     h: 844,
@@ -655,6 +674,141 @@ try {
         }
       }
       await sleep(300)
+    }
+
+    if (s.moreCheck) {
+      const outcome = await cdp.evaluate(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+        const notice = () =>
+          (document.querySelector('[role="status"]') || {}).textContent?.trim() || ''
+        const trips = () =>
+          (JSON.parse(localStorage.getItem('farewise.v2') || '{}').trips || []).length
+        const button = (text) =>
+          [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === text)
+
+        const blobs = []
+        const names = []
+        const realCreate = URL.createObjectURL
+        const realClick = HTMLAnchorElement.prototype.click
+        URL.createObjectURL = (blob) => {
+          blobs.push(blob)
+          return realCreate.call(URL, blob)
+        }
+        HTMLAnchorElement.prototype.click = function () {
+          names.push(this.download)
+        }
+
+        const before = trips()
+        button('Export JSON').click()
+        await wait(250)
+        button('Export trips CSV').click()
+        await wait(250)
+
+        URL.createObjectURL = realCreate
+        HTMLAnchorElement.prototype.click = realClick
+
+        if (blobs.length < 2) return 'exports did not run'
+        const jsonText = await blobs[0].text()
+        const csvText = await blobs[1].text()
+
+        const input = document.querySelector('input[type="file"]')
+        if (!input) return 'no file input'
+
+        const deliver = async (name, text) => {
+          const data = new DataTransfer()
+          data.items.add(new File([text], name, { type: 'application/json' }))
+          input.files = data.files
+          input.dispatchEvent(new Event('change', { bubbles: true }))
+          await wait(500)
+        }
+
+        await deliver('bad.json', '{"nope":true}')
+        const badNotice = notice()
+        const badTrips = trips()
+
+        await deliver('good.json', jsonText)
+        const goodNotice = notice()
+        const goodTrips = trips()
+
+        return JSON.stringify({
+          before,
+          names,
+          csvHeader: csvText.split('\\n')[0],
+          csvRows: csvText.split('\\n').length - 1,
+          jsonVersion: JSON.parse(jsonText).version,
+          jsonTrips: JSON.parse(jsonText).trips.length,
+          badNotice,
+          badTrips,
+          goodNotice,
+          goodTrips,
+        })
+      })()`)
+
+      let seen = null
+      try {
+        seen = JSON.parse(outcome.result.value)
+      } catch {
+        /* reported below */
+      }
+      if (!seen) {
+        problems.push(`${s.name}: ${outcome.result.value}`)
+      } else {
+        if (!/^farewise-backup-\d{4}-\d{2}-\d{2}\.json$/.test(seen.names[0] || '')) {
+          problems.push(`${s.name}: json filename ${seen.names[0]}`)
+        }
+        if (!/^farewise-trips-\d{4}-\d{2}-\d{2}\.csv$/.test(seen.names[1] || '')) {
+          problems.push(`${s.name}: csv filename ${seen.names[1]}`)
+        }
+        if (
+          seen.csvHeader !==
+          'date,from,to,mode,role,distance_km,gross,discount,fare'
+        ) {
+          problems.push(`${s.name}: csv header ${seen.csvHeader}`)
+        }
+        if (seen.csvRows !== seen.before) {
+          problems.push(`${s.name}: csv rows ${seen.csvRows} of ${seen.before}`)
+        }
+        if (seen.jsonVersion !== 2 || seen.jsonTrips !== seen.before) {
+          problems.push(
+            `${s.name}: backup v${seen.jsonVersion} with ${seen.jsonTrips} trips, expected 2 and ${seen.before}`
+          )
+        }
+        if (!/Nothing changed/.test(seen.badNotice)) {
+          problems.push(`${s.name}: bad import said "${seen.badNotice}"`)
+        }
+        if (seen.badTrips !== seen.before) {
+          problems.push(`${s.name}: bad import changed trips to ${seen.badTrips}`)
+        }
+        if (!/Imported/.test(seen.goodNotice)) {
+          problems.push(`${s.name}: good import said "${seen.goodNotice}"`)
+        }
+        if (seen.goodTrips !== seen.before) {
+          problems.push(`${s.name}: good import left ${seen.goodTrips} of ${seen.before}`)
+        }
+      }
+      await sleep(300)
+    }
+
+    if (s.scrollToText) {
+      const moved = await cdp.evaluate(`(() => {
+        const target = [...document.querySelectorAll('button, a, h2, p')].find(
+          (el) => el.textContent.trim() === ${JSON.stringify(s.scrollToText)}
+        )
+        if (!target) return 'not-found'
+        const section = target.closest('section') || target
+        const main = section.closest('main')
+        if (!main) return 'no-scroller'
+        const top =
+          main.scrollTop +
+          section.getBoundingClientRect().top -
+          main.getBoundingClientRect().top
+        main.scrollTop = Math.max(0, top)
+        return 'scrolled'
+      })()`)
+      if (moved.result.value !== 'scrolled') {
+        problems.push(`${s.name}: ${moved.result.value} for ${s.scrollToText}`)
+      }
+      await sleep(400)
     }
 
     const { data } = await cdp.send('Page.captureScreenshot', {
