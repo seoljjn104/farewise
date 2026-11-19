@@ -5,14 +5,28 @@ import { roleById } from '../lib/fares.js'
 import Icon from '../components/Icon.jsx'
 import AdminLogin from './AdminLogin.jsx'
 import TariffPanel from './TariffPanel.jsx'
+import ModerationPanel from './ModerationPanel.jsx'
+import HealthPanel from './HealthPanel.jsx'
+import AdminsPanel from './AdminsPanel.jsx'
 
 /* Panels that exist. The nav renders from this list, so it cannot link to a
    screen the console does not ship. */
 const PANELS = [
   { id: 'tariff', label: 'Tariff', icon: 'sliders', title: 'Tariff rules', sub: 'Rate rows and audit' },
+  { id: 'moderation', label: 'Moderation', icon: 'shield', title: 'Moderate advisories', sub: 'Approve/reject pending' },
+  { id: 'health', label: 'Health', icon: 'gauge', title: 'Aggregate health', sub: 'Counts and status' },
+  { id: 'admins', label: 'Admins', icon: 'users', title: 'Admin roster', sub: 'Operator-provisioned accounts' },
 ]
 
 const findPanel = (id) => PANELS.find((panel) => panel.id === id) || PANELS[0]
+
+/** Map panel id -> its React component. */
+const PANEL_COMPONENTS = {
+  tariff: TariffPanel,
+  moderation: ModerationPanel,
+  health: HealthPanel,
+  admins: AdminsPanel,
+}
 
 /**
  * The admin boundary. It owns the gate, so no console component can render
@@ -38,6 +52,8 @@ export default function AdminApp({ route }) {
     actions.signOutAdmin()
     navigate('#/')
   }
+
+  const PanelComponent = PANEL_COMPONENTS[current.id] || TariffPanel
 
   return (
     <div className="flex min-h-[100dvh] bg-ink-900">
@@ -175,7 +191,7 @@ export default function AdminApp({ route }) {
 
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 lg:px-6 lg:py-5">
           <div className="mx-auto w-full max-w-[1180px]">
-            <TariffPanel />
+            <PanelComponent />
           </div>
         </main>
 
