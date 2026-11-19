@@ -3,7 +3,10 @@
  *
  * Mirrors the `fare_matrices` table described in the project charter:
  *   F_gross = B + max(0, D - D_base) * R
- *   F_net   = F_gross * (1 - discount_pct / 100)
+ *   F_net   = F_gross * (1 - discount/100)
+ *
+ * A trip is one fare over its total distance. A via point adds distance; it
+ * never adds a second base fare.
  *
  * All rows are sourced from the LTFRB / DOTr provisional fare matrix that took
  * effect 28 September 2026. No rate here is assumed — every value is cited on
@@ -72,63 +75,118 @@ export const ROLES = [
 export const roleById = (id) => ROLES.find((r) => r.id === id) || ROLES[0]
 
 /** Round to centavos. Applied once, at the end, so no rounding drift accumulates. */
-const cent = (n) => Math.round(n * 100) / 100
+export const cent = (n) => Math.round(n * 100) / 100
+
+const clampPct = (n) => Math.min(100, Math.max(0, n))
+
+const num = (value, fallback = 0) => {
+  if (value === '' || value === null || value === undefined) return fallback
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
 
 /**
- * Compute a single leg.
- * @param {object} row      a fare_matrices row
- * @param {number} km       road distance in kilometres
- * @param {number} discountPct  statutory discount to apply
+ * The discount a class will actually grant. A row's `discount_pct` is a cap:
+ * it can lower the statutory discount, never raise it.
+ */
+export function effectiveDiscountPct(row, commuterDiscountPct = 0) {
+  const entitled = clampPct(num(commuterDiscountPct))
+  const cap = clampPct(num(row?.discount_pct, 100))
+  return Math.min(entitled, cap)
+}
+
+/**
+ * A row is only billable when it is active and carries a real base fare and
+ * per-km rate. A zero-rate row must never become the cheapest result.
+ */
+export function billableRows(matrix = []) {
+  return matrix.filter(
+    (row) => row?.active !== false && num(row?.base_fare) > 0 && num(row?.per_km) > 0,
+  )
+}
+
+/**
+ * Coerce an edited row into a safe shape. Invalid numbers become zero, and a
+ * row without a base fare and a per-km rate cannot stay active.
+ */
+export function sanitizeRateRow(row = {}) {
+  const baseFare = Math.max(0, num(row.base_fare))
+  const baseKm = Math.max(0, num(row.base_km))
+  const perKm = Math.max(0, num(row.per_km))
+  const discountPct = clampPct(num(row.discount_pct, 100))
+
+  return {
+    ...row,
+    base_fare: baseFare,
+    base_km: baseKm,
+    per_km: perKm,
+    discount_pct: discountPct,
+    active: Boolean(row.active) && baseFare > 0 && perKm > 0,
+  }
+}
+
+/**
+ * Price a distance under one fare row.
+ * @param {object} row          a fare_matrices row
+ * @param {number} km           road distance in kilometres, unrounded
+ * @param {number} discountPct  the commuter's statutory entitlement
  */
 export function computeFare(row, km, discountPct = 0) {
   if (!row) return null
-  const distance = Math.max(0, Number(km) || 0)
-  const billable = Math.max(0, distance - Number(row.base_km))
-  const excess = billable * Number(row.per_km)
-  const gross = Number(row.base_fare) + excess
-  const discountAmount = gross * (discountPct / 100)
+
+  const distance = Math.max(0, num(km))
+  const baseKm = Math.max(0, num(row.base_km))
+  const perKm = Math.max(0, num(row.per_km))
+  const baseFare = Math.max(0, num(row.base_fare))
+
+  const billable = Math.max(0, distance - baseKm)
+  const excess = billable * perKm
+  const gross = baseFare + excess
+  const appliedPct = effectiveDiscountPct(row, discountPct)
+  const discountAmount = gross * (appliedPct / 100)
   const net = gross - discountAmount
 
   return {
     row,
     distanceKm: cent(distance),
-    baseKm: Number(row.base_km),
-    baseFare: cent(row.base_fare),
-    perKm: Number(row.per_km),
+    baseKm: cent(baseKm),
+    baseFare: cent(baseFare),
+    perKm,
     billableKm: cent(billable),
     excessCharge: cent(excess),
     gross: cent(gross),
-    discountPct,
+    discountPct: appliedPct,
     discountAmount: cent(discountAmount),
     net: cent(net),
   }
 }
 
 /**
- * Chain several legs into one itinerary (the charter's multi-leg trip chaining).
- * @param {Array<{row:object, km:number}>} legs
+ * Price a whole trip as one fare. `legsKm` keeps one entry per leg so labels
+ * stay aligned with the route, but only non-zero legs add distance.
+ * @param {number[]} legsKm
+ * @param {object} row
+ * @param {number} discountPct
  */
-export function computeTrip(legs, discountPct = 0) {
-  const priced = legs
-    .filter((l) => l.row && Number(l.km) > 0)
-    .map((l) => computeFare(l.row, l.km, discountPct))
+export function priceTrip(legsKm, row, discountPct = 0) {
+  if (!row || !Array.isArray(legsKm) || legsKm.length === 0) return null
 
-  const sum = (k) => cent(priced.reduce((a, b) => a + (b[k] || 0), 0))
+  const values = legsKm.map((km) => Math.max(0, num(km)))
+  const legs = values.map((value) => ({ km: cent(value), skipped: value <= 0 }))
 
-  return {
-    legs: priced,
-    totalKm: sum('distanceKm'),
-    totalGross: sum('gross'),
-    totalDiscount: sum('discountAmount'),
-    totalNet: sum('net'),
-    discountPct,
-  }
+  // Sum the raw distances. Rounding each leg first would lose the demo route's
+  // last four metres and move the fare by a centavo.
+  const totalKm = values.reduce((sum, value) => sum + value, 0)
+  const fare = computeFare(row, totalKm, discountPct)
+  if (!fare || fare.distanceKm <= 0) return null
+
+  return { ...fare, legs, totalKm: fare.distanceKm }
 }
 
-/** Compare what a trip costs across every active vehicle class. */
+/** Compare what a trip costs across every billable vehicle class. */
 export function compareModes(matrix, km, discountPct = 0) {
-  return matrix
-    .filter((r) => r.active !== false)
-    .map((row) => ({ row, ...computeFare(row, km, discountPct) }))
+  return billableRows(matrix)
+    .map((row) => computeFare(row, km, discountPct))
+    .filter(Boolean)
     .sort((a, b) => a.net - b.net)
 }

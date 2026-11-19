@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import places from '../data/places.json'
-import { ROLES, computeTrip, roleById } from '../lib/fares.js'
+import { ROLES, priceTrip, compareModes, billableRows, roleById } from '../lib/fares.js'
 import { fetchRoute } from '../lib/geo.js'
 import { useStore, actions, monthTrips, totalsFor } from '../lib/store.js'
 import { peso, km as kmFmt, duration } from '../lib/format.js'
@@ -89,21 +89,13 @@ export default function Plan({ onOpenBudget }) {
   /* ---- pricing ---------------------------------------------------------- */
   const trip = useMemo(() => {
     if (stops.length < 2) return null
-    const legs = stops.slice(1).map((_, i) => ({
-      row: mode,
-      km: route.legs[i]?.km ?? 0,
-    }))
-    if (!legs.length || legs.every((l) => !l.km)) return null
-    return computeTrip(legs, role.discount_pct)
+    const legsKm = stops.slice(1).map((_, i) => route.legs[i]?.km ?? 0)
+    return priceTrip(legsKm, mode, role.discount_pct)
   }, [stopsKey, route, mode, role]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const comparisons = useMemo(() => {
     if (!route.km) return []
-    const rows = matrix
-      .filter((m) => m.active !== false)
-      .map((m) => ({ m, ...computeTrip([{ row: m, km: route.km }], role.discount_pct) }))
-      .sort((a, b) => a.totalNet - b.totalNet)
-    return rows
+    return compareModes(billableRows(matrix), route.km, role.discount_pct)
   }, [route.km, matrix, role])
 
   const cheapest = comparisons[0]
@@ -153,9 +145,9 @@ export default function Plan({ onOpenBudget }) {
       roleLabel: role.label,
       distanceKm: trip.totalKm,
       distanceSource: route.source,
-      fare: trip.totalNet,
-      gross: trip.totalGross,
-      discount: trip.totalDiscount,
+      fare: trip.net,
+      gross: trip.gross,
+      discount: trip.discountAmount,
       legCount: trip.legs.length,
     })
     setLogged(true)
@@ -312,11 +304,11 @@ export default function Plan({ onOpenBudget }) {
               >
                 <div className="overflow-hidden rounded-[11px] border border-line">
                   {comparisons.map((c, i) => {
-                    const isCurrent = c.m.id === modeId
+                    const isCurrent = c.row.id === modeId
                     return (
                       <button
-                        key={c.m.id}
-                        onClick={() => setModeId(c.m.id)}
+                        key={c.row.id}
+                        onClick={() => setModeId(c.row.id)}
                         className={`flex w-full items-center gap-3 border-b border-line-soft px-3 py-2.5 text-left last:border-b-0 ${
                           isCurrent ? 'bg-ink-750' : 'bg-ink-800 hover:bg-ink-750'
                         }`}
@@ -324,7 +316,7 @@ export default function Plan({ onOpenBudget }) {
                         <span className="num w-4 shrink-0 text-[10px] text-faint">{i + 1}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[12px] font-medium text-fg">
-                            {c.m.mode}
+                            {c.row.mode}
                           </span>
                         </span>
                         {i === 0 && <Badge tone="route">Cheapest</Badge>}
@@ -333,7 +325,7 @@ export default function Plan({ onOpenBudget }) {
                             isCurrent ? 'text-signal' : 'text-fg-dim'
                           }`}
                         >
-                          {peso(c.totalNet)}
+                          {peso(c.net)}
                         </span>
                       </button>
                     )
@@ -411,7 +403,7 @@ export default function Plan({ onOpenBudget }) {
             disabled={!ready || loading}
             onClick={() => setExpanded(true)}
           >
-            {loading ? 'Measuring route…' : ready ? `Compute fare · ${peso(trip.totalNet)}` : 'Pick your route'}
+            {loading ? 'Measuring route…' : ready ? `Compute fare · ${peso(trip.net)}` : 'Pick your route'}
           </Btn>
         </div>
       </aside>
@@ -571,7 +563,7 @@ function FareDrawer({
               {role.discount_pct ? `${role.label} fare` : 'Total fare'}
             </p>
             <p className="num mt-1.5 text-[34px] leading-none font-bold tracking-[-0.02em] text-signal">
-              {hasResult ? peso(trip.totalNet) : '—'}
+              {hasResult ? peso(trip.net) : '—'}
             </p>
           </div>
 
@@ -586,10 +578,10 @@ function FareDrawer({
               value={mode ? mode.code : '—'}
               hint={mode?.mode}
             />
-            {trip?.totalDiscount > 0 && (
+            {trip?.discountAmount > 0 && (
               <div className="ml-auto shrink-0">
                 <Badge tone="route" icon="check">
-                  Saved {peso(trip.totalDiscount)}
+                  Saved {peso(trip.discountAmount)}
                 </Badge>
               </div>
             )}
@@ -618,25 +610,25 @@ function FareDrawer({
               <div className="mt-3 divide-y divide-[#1d2530]">
                 <Row
                   label={`Base fare — first ${trip?.baseKm ?? mode?.base_km} km`}
-                  value={peso(mostExpensive(trip)?.baseFare ?? mode?.base_fare ?? 0)}
+                  value={peso(trip?.baseFare ?? mode?.base_fare ?? 0)}
                 />
                 <Row
                   label="Excess distance"
-                  sub={`${(mostExpensive(trip)?.billableKm ?? 0).toFixed(2)} km × ${peso(
-                    mode?.per_km ?? 0
+                  sub={`${(trip?.billableKm ?? 0).toFixed(2)} km × ${peso(
+                    trip?.perKm ?? mode?.per_km ?? 0
                   )}/km`}
-                  value={peso(mostExpensive(trip)?.excessCharge ?? 0)}
+                  value={peso(trip?.excessCharge ?? 0)}
                 />
-                <Row label="Subtotal" value={peso(trip?.totalGross ?? 0)} strong />
-                {role.discount_pct > 0 && (
+                <Row label="Subtotal" value={peso(trip?.gross ?? 0)} strong />
+                {trip?.discountPct > 0 && (
                   <Row
                     label={`${role.label} discount`}
-                    sub={`${role.discount_pct}% statutory`}
-                    value={`−${peso(trip?.totalDiscount ?? 0)}`}
+                    sub={`${trip.discountPct}% statutory`}
+                    value={`−${peso(trip.discountAmount)}`}
                     tone="route"
                   />
                 )}
-                <Row label="You pay" value={peso(trip?.totalNet ?? 0)} strong />
+                <Row label="You pay" value={peso(trip?.net ?? 0)} strong />
               </div>
 
               <div className="mt-4 flex items-start gap-2 rounded-[10px] border border-line bg-ink-800 px-3 py-2.5">
@@ -669,11 +661,8 @@ function FareDrawer({
                         {stops[i]?.name} → {stops[i + 1]?.name}
                       </span>
                       <span className="num block text-[10.5px] text-muted">
-                        {kmFmt(l.distanceKm)} · {mode?.code}
+                        {l.skipped ? 'No distance' : kmFmt(l.km)} · {mode?.code}
                       </span>
-                    </span>
-                    <span className="num shrink-0 text-[12px] font-semibold text-fg-dim">
-                      {peso(l.net)}
                     </span>
                   </div>
                 ))}
@@ -686,16 +675,16 @@ function FareDrawer({
               <p className="label-xs">Cheaper alternatives</p>
               <div className="mt-3 space-y-1.5">
                 {comparisons
-                  .filter((c) => c.m.id !== mode?.id)
+                  .filter((c) => c.row.id !== mode?.id)
                   .slice(0, 3)
                   .map((c) => {
-                    const diff = c.totalNet - (trip?.totalNet ?? 0)
+                    const diff = c.net - (trip?.net ?? 0)
                     return (
                       <div
-                        key={c.m.id}
+                        key={c.row.id}
                         className="flex items-center justify-between gap-3 rounded-[10px] border border-line bg-ink-800 px-3 py-2"
                       >
-                        <span className="min-w-0 truncate text-[11.5px] text-fg-dim">{c.m.mode}</span>
+                        <span className="min-w-0 truncate text-[11.5px] text-fg-dim">{c.row.mode}</span>
                         <span
                           className={`num shrink-0 text-[11.5px] font-semibold ${
                             diff < 0 ? 'text-route' : 'text-muted'
@@ -711,15 +700,15 @@ function FareDrawer({
                   <p className="text-[12px] text-muted">No other classes active.</p>
                 )}
               </div>
-              {cheapest && cheapest.m.id !== mode?.id && (
+              {cheapest && cheapest.row.id !== mode?.id && (
                 <Btn
                   size="sm"
                   variant="route"
                   className="mt-3 w-full"
                   icon="zap"
-                  onClick={() => onSwitchMode?.(cheapest.m.id)}
+                  onClick={() => onSwitchMode?.(cheapest.row.id)}
                 >
-                  Switch to {cheapest.m.code} and save {peso((trip?.totalNet ?? 0) - cheapest.totalNet)}
+                  Switch to {cheapest.row.code} and save {peso((trip?.net ?? 0) - cheapest.net)}
                 </Btn>
               )}
             </div>
@@ -738,10 +727,4 @@ function SummaryBit({ label, value, hint }) {
       {hint && <p className="mt-1 max-w-[16ch] truncate text-[10px] text-faint">{hint}</p>}
     </div>
   )
-}
-
-/** The drawer shows one base-fare line; take it from the most expensive leg. */
-function mostExpensive(trip) {
-  if (!trip || !trip.legs.length) return null
-  return trip.legs.reduce((a, b) => (b.excessCharge > a.excessCharge ? b : a), trip.legs[0])
 }
