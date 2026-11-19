@@ -44,7 +44,24 @@ const SHOTS = [
   { name: '04-budget-mobile', hash: '#/budget', w: 390, h: 844, settle: 1800, mobile: true },
   { name: '05-alerts-mobile', hash: '#/alerts', w: 390, h: 844, settle: 1800, mobile: true },
   { name: '06-more-mobile', hash: '#/more', w: 390, h: 844, settle: 1400, mobile: true },
-  { name: '07-admin-desktop', hash: '#/admin', w: 1440, h: 900, settle: 1800, nav: false },
+  {
+    name: '07-admin-login',
+    hash: '#/admin',
+    w: 1440,
+    h: 900,
+    settle: 1800,
+    nav: false,
+    denyCheck: true,
+  },
+  {
+    name: '08-admin-console',
+    hash: '#/admin/login',
+    w: 1440,
+    h: 900,
+    settle: 1400,
+    nav: false,
+    adminLogin: true,
+  },
 ]
 
 class CDP {
@@ -177,6 +194,35 @@ try {
     const url = BASE + '/' + (s.reload ? '?stress=1' : '') + s.hash
     await cdp.send('Page.navigate', { url })
     await sleep(s.settle)
+
+    /* The gate must redirect before any console component renders. */
+    if (s.denyCheck) {
+      const { result } = await cdp.evaluate('window.location.hash')
+      if (result.value !== '#/admin/login') {
+        problems.push(`${s.name}: gate did not redirect (${result.value})`)
+      }
+    }
+
+    if (s.adminLogin) {
+      const password = process.env.FW_ADMIN_PASSWORD || 'farewise-demo'
+      const filled = await cdp.evaluate(`(() => {
+        const input = document.getElementById('admin-password')
+        if (!input) return 'no-password-field'
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+        setter.call(input, ${JSON.stringify(password)})
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.closest('form').requestSubmit()
+        return 'submitted'
+      })()`)
+      if (filled.result.value !== 'submitted') {
+        problems.push(`${s.name}: ${filled.result.value}`)
+      }
+      await sleep(1800)
+      const { result } = await cdp.evaluate('window.location.hash')
+      if (!String(result.value).startsWith('#/admin') || result.value === '#/admin/login') {
+        problems.push(`${s.name}: login did not reach the console (${result.value})`)
+      }
+    }
 
     const { data } = await cdp.send('Page.captureScreenshot', {
       format: 'png',

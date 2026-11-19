@@ -1,4 +1,4 @@
-import { Component, useEffect } from 'react'
+import { Component, Suspense, lazy, useEffect } from 'react'
 import { navigate, useHashRoute } from './lib/router.js'
 import CommuterShell from './shell/CommuterShell.jsx'
 import Plan from './views/Plan.jsx'
@@ -6,7 +6,9 @@ import Ledger from './views/Ledger.jsx'
 import Budget from './views/Budget.jsx'
 import Advisories from './views/Advisories.jsx'
 import More from './views/More.jsx'
-import Admin from './views/Admin.jsx'
+
+/* Admin code is a separate chunk. It must never enter the commuter bundle. */
+const AdminApp = lazy(() => import('./admin/AdminApp.jsx'))
 
 /* ------------------------------------------------------------ error guard -- */
 class ErrorBoundary extends Component {
@@ -42,6 +44,14 @@ class ErrorBoundary extends Component {
 }
 
 /* ------------------------------------------------------------------ views -- */
+function BootScreen() {
+  return (
+    <div className="flex h-[100dvh] items-center justify-center bg-ink-900">
+      <p className="text-[12px] text-muted">Loading the console…</p>
+    </div>
+  )
+}
+
 function CommuterView({ view }) {
   if (view === 'trips') return <Ledger />
   if (view === 'budget') return <Budget onOpenPlanner={() => navigate('#/plan')} />
@@ -62,11 +72,11 @@ export default function App() {
 
   if (route.kind === 'admin' || route.kind === 'adminLogin') {
     return (
-      <div className="h-[100dvh] overflow-y-auto bg-ink-900">
-        <ErrorBoundary key="admin">
-          <Admin />
-        </ErrorBoundary>
-      </div>
+      <ErrorBoundary key={route.kind}>
+        <Suspense fallback={<BootScreen />}>
+          <AdminApp route={route} />
+        </Suspense>
+      </ErrorBoundary>
     )
   }
 
