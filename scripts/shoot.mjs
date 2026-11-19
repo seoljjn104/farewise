@@ -97,6 +97,49 @@ const SHOTS = [
     mobile: true,
     dupCheck: true,
   },
+  {
+    name: '13-trips-menu',
+    hash: '#/trips',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    clickSelector: 'button[aria-label^="Actions for"]',
+  },
+  {
+    name: '14-trips-delete',
+    hash: '#/trips',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    deleteCheck: true,
+  },
+  {
+    name: '15-trips-filters',
+    hash: '#/trips',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    clickText: 'Filters',
+  },
+  {
+    name: '16-trips-desktop',
+    hash: '#/trips',
+    w: 1440,
+    h: 900,
+    settle: 1600,
+  },
+  {
+    name: '17-trips-empty',
+    hash: '#/trips',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    prep: 'emptyTrips',
+  },
 ]
 
 class CDP {
@@ -226,6 +269,20 @@ try {
       await sleep(200)
     }
 
+    if (s.prep === 'emptyTrips') {
+      await cdp.send('Page.navigate', { url: BASE + '/#/trips' })
+      await sleep(1500)
+      const cleared = await cdp.evaluate(`(() => {
+        const state = JSON.parse(localStorage.getItem('farewise.v2') || 'null')
+        if (!state) return 'no-state'
+        state.trips = []
+        localStorage.setItem('farewise.v2', JSON.stringify(state))
+        return 'cleared'
+      })()`)
+      if (cleared.result.value !== 'cleared') problems.push(`${s.name}: ${cleared.result.value}`)
+      await sleep(200)
+    }
+
     const url = `${BASE}/?shot=${encodeURIComponent(s.name)}${s.hash}`
     await cdp.send('Page.navigate', { url })
     await sleep(s.settle)
@@ -259,10 +316,12 @@ try {
       }
     }
 
-    if (s.clickText || s.clickLabel) {
-      const finder = s.clickLabel
-        ? `document.querySelector(${JSON.stringify(`[aria-label="${s.clickLabel}"]`)})`
-        : `[...document.querySelectorAll('button')].find((b) => b.textContent.trim().includes(${JSON.stringify(s.clickText)}))`
+    if (s.clickText || s.clickLabel || s.clickSelector) {
+      const finder = s.clickSelector
+        ? `document.querySelector(${JSON.stringify(s.clickSelector)})`
+        : s.clickLabel
+          ? `document.querySelector(${JSON.stringify(`[aria-label="${s.clickLabel}"]`)})`
+          : `[...document.querySelectorAll('button')].find((b) => b.textContent.trim().includes(${JSON.stringify(s.clickText)}))`
       const clicked = await cdp.evaluate(`(() => {
         const el = ${finder}
         if (!el) return 'not-found'
@@ -298,6 +357,68 @@ try {
       if (!/Saved/.test(message.result.value)) {
         problems.push(`${s.name}: no saved confirmation (${message.result.value.trim()})`)
       }
+    }
+
+    if (s.deleteCheck) {
+      const outcome = await cdp.evaluate(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+        const count = () => (JSON.parse(localStorage.getItem('farewise.v2') || '{}').trips || []).length
+
+        const before = count()
+        const menu = document.querySelector('button[aria-label^="Actions for"]')
+        if (!menu) return 'no-menu'
+        menu.click()
+        await wait(350)
+
+        const remove = [...document.querySelectorAll('button')].find(
+          (b) => b.textContent.trim() === 'Delete trip'
+        )
+        if (!remove) return 'no-delete-button'
+        remove.click()
+        await wait(350)
+
+        const after = count()
+        const bar = document.querySelector('[role="status"]')
+        const undo = bar
+          ? [...bar.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Undo')
+          : null
+        if (!undo) return JSON.stringify({ after, undo: false, restored: null })
+        undo.click()
+        await wait(350)
+        const restored = count()
+
+        /* Leave the bar visible for the screenshot. */
+        const again = document.querySelector('button[aria-label^="Actions for"]')
+        if (again) {
+          again.click()
+          await wait(300)
+          const second = [...document.querySelectorAll('button')].find(
+            (b) => b.textContent.trim() === 'Delete trip'
+          )
+          if (second) second.click()
+          await wait(300)
+        }
+        return JSON.stringify({ after, undo: true, restored, before })
+      })()`)
+
+      let seen = null
+      try {
+        seen = JSON.parse(outcome.result.value)
+      } catch {
+        /* reported below */
+      }
+      if (!seen) {
+        problems.push(`${s.name}: ${outcome.result.value}`)
+      } else {
+        if (seen.after !== seen.before - 1) {
+          problems.push(`${s.name}: delete ${seen.before} -> ${seen.after}`)
+        }
+        if (!seen.undo) problems.push(`${s.name}: no undo bar`)
+        else if (seen.restored !== seen.before) {
+          problems.push(`${s.name}: undo left ${seen.restored} of ${seen.before}`)
+        }
+      }
+      await sleep(300)
     }
 
     if (s.dupCheck) {

@@ -2,7 +2,7 @@ import { Component, Suspense, lazy, useEffect } from 'react'
 import { navigate, useHashRoute } from './lib/router.js'
 import CommuterShell from './shell/CommuterShell.jsx'
 import Plan from './views/Plan.jsx'
-import Ledger from './views/Ledger.jsx'
+import Trips from './views/Trips.jsx'
 import Budget from './views/Budget.jsx'
 import Advisories from './views/Advisories.jsx'
 import More from './views/More.jsx'
@@ -53,7 +53,7 @@ function BootScreen() {
 }
 
 function CommuterView({ view }) {
-  if (view === 'trips') return <Ledger />
+  if (view === 'trips') return <Trips />
   if (view === 'budget') return <Budget onOpenPlanner={() => navigate('#/plan')} />
   if (view === 'alerts') return <Advisories />
   if (view === 'more') return <More />

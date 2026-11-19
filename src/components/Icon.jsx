@@ -149,6 +149,13 @@ const P = {
     </>
   ),
   circle: <circle cx="12" cy="12" r="8" />,
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 18, stroke = 1.7, className = '', ...rest }) {
