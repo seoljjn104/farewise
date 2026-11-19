@@ -148,7 +148,34 @@ const SHOTS = [
     clickText: 'Edit',
   },
   {
-    name: '19-trips-empty',
+    name: '19-alerts-confirm',
+    hash: '#/alerts',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    confirmCheck: true,
+  },
+  {
+    name: '20-alerts-report',
+    hash: '#/alerts',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    clickText: 'Report',
+  },
+  {
+    name: '21-alerts-report-sent',
+    hash: '#/alerts',
+    w: 390,
+    h: 844,
+    settle: 1600,
+    mobile: true,
+    reportCheck: true,
+  },
+  {
+    name: '22-trips-empty',
     hash: '#/trips',
     w: 390,
     h: 844,
@@ -492,6 +519,139 @@ try {
         }
         if (seen.disabled !== true) {
           problems.push(`${s.name}: Log still enabled`)
+        }
+      }
+      await sleep(300)
+    }
+
+    if (s.confirmCheck) {
+      const outcome = await cdp.evaluate(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+        const enabled = () =>
+          [...document.querySelectorAll('button[aria-label^="Confirm this is still true"]')][0]
+        const first = enabled()
+        if (!first) {
+          const done = document.querySelector('button[aria-label^="Already confirmed"]')
+          return JSON.stringify({ already: Boolean(done) })
+        }
+        const read = (el) => Number(el?.querySelector('.num')?.textContent || 0)
+        const before = read(first)
+        first.click()
+        await wait(300)
+
+        const confirmed = document.querySelector('button[aria-label^="Already confirmed"]')
+        if (!confirmed) return JSON.stringify({ before, after: null, disabled: null, stable: null })
+        const after = read(confirmed)
+        const disabled = confirmed.disabled
+        confirmed.click()
+        await wait(300)
+        const stable = read(
+          document.querySelector('button[aria-label^="Already confirmed"]')
+        )
+        return JSON.stringify({ before, after, disabled, stable })
+      })()`)
+
+      let seen = null
+      try {
+        seen = JSON.parse(outcome.result.value)
+      } catch {
+        /* reported below */
+      }
+      if (!seen) {
+        problems.push(`${s.name}: ${outcome.result.value}`)
+      } else if (seen.already) {
+        problems.push(`${s.name}: a notice was already confirmed before the check`)
+      } else {
+        if (seen.after !== seen.before + 1) {
+          problems.push(`${s.name}: confirms ${seen.before} -> ${seen.after}`)
+        }
+        if (seen.disabled !== true) problems.push(`${s.name}: confirm button still enabled`)
+        if (seen.stable !== seen.after) {
+          problems.push(`${s.name}: second click changed the count to ${seen.stable}`)
+        }
+      }
+      await sleep(300)
+    }
+
+    if (s.reportCheck) {
+      const outcome = await cdp.evaluate(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+        const areaSetter = Object.getOwnPropertyDescriptor(
+          HTMLTextAreaElement.prototype,
+          'value'
+        ).set
+        const pending = () =>
+          (JSON.parse(localStorage.getItem('farewise.v2') || '{}').advisories || []).filter(
+            (a) => a.status === 'pending'
+          ).length
+        const byText = (tag, text) =>
+          [...document.querySelectorAll(tag)].find((el) => el.textContent.trim() === text)
+
+        const open = byText('button', 'Report')
+        if (!open) return 'no-report-button'
+        open.click()
+        await wait(400)
+
+        const dialog = document.querySelector('[role="dialog"]')
+        if (!dialog) return 'no-dialog'
+        const beforePending = pending()
+
+        const categoryButton = [...dialog.querySelectorAll('[role="radio"]')].find((el) =>
+          el.textContent.includes('Fare update')
+        )
+        if (!categoryButton) return 'no-category-option'
+        categoryButton.click()
+        await wait(400)
+
+        const stillOpen = Boolean(document.querySelector('[role="dialog"]'))
+        const afterCategory = pending()
+
+        const headline = dialog.querySelector('input')
+        const details = dialog.querySelector('textarea')
+        if (!headline || !details) return 'no-fields'
+        setter.call(headline, 'V-hire terminal moves to Ayala')
+        headline.dispatchEvent(new Event('input', { bubbles: true }))
+        areaSetter.call(details, 'The terminal is now at the back of the mall, add ten minutes.')
+        details.dispatchEvent(new Event('input', { bubbles: true }))
+        await wait(300)
+
+        const submit = byText('button', 'Submit for review')
+        if (!submit) return 'no-submit'
+        submit.click()
+        await wait(600)
+
+        const banner = document.querySelector('[role="status"]')
+        return JSON.stringify({
+          beforePending,
+          afterCategory,
+          stillOpen,
+          closed: !document.querySelector('[role="dialog"]'),
+          pending: pending(),
+          banner: banner ? banner.textContent.trim() : '',
+        })
+      })()`)
+
+      let seen = null
+      try {
+        seen = JSON.parse(outcome.result.value)
+      } catch {
+        /* reported below */
+      }
+      if (!seen) {
+        problems.push(`${s.name}: ${outcome.result.value}`)
+      } else {
+        if (!seen.stillOpen || seen.afterCategory !== seen.beforePending) {
+          problems.push(
+            `${s.name}: category click submitted or closed the sheet (${seen.beforePending} -> ${seen.afterCategory})`
+          )
+        }
+        if (!seen.closed) problems.push(`${s.name}: sheet stayed open after submit`)
+        if (seen.pending !== seen.beforePending + 1) {
+          problems.push(`${s.name}: pending ${seen.beforePending} -> ${seen.pending}`)
+        }
+        if (!/moderator/.test(seen.banner)) {
+          problems.push(`${s.name}: no confirmation banner (${seen.banner})`)
         }
       }
       await sleep(300)
