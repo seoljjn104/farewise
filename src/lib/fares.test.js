@@ -14,35 +14,35 @@ const cent = (n) => Math.round(n * 100) / 100
 
 describe('computeFare', () => {
   it('charges the base fare below the covered distance', () => {
-    expect(computeFare(puj, 3).gross).toBe(14)
+    expect(computeFare(puj, 3).gross).toBe(14.5)
   })
 
   it('charges the base fare exactly at the covered distance', () => {
-    expect(computeFare(puj, 4).gross).toBe(14)
+    expect(computeFare(puj, 4).gross).toBe(14.5)
   })
 
   it('prices the demo trip from the raw distance', () => {
     const fare = computeFare(puj, 6.9736, 20)
     expect(fare.distanceKm).toBe(6.97)
     expect(fare.billableKm).toBe(2.97)
-    expect(fare.excessCharge).toBe(5.95)
-    expect(fare.gross).toBe(19.95)
+    expect(fare.excessCharge).toBe(6.24)
+    expect(fare.gross).toBe(20.74)
     expect(fare.discountPct).toBe(20)
-    expect(fare.discountAmount).toBe(3.99)
-    expect(fare.net).toBe(15.96)
+    expect(fare.discountAmount).toBe(4.15)
+    expect(fare.net).toBe(16.6)
   })
 
   it('applies no discount for a regular commuter', () => {
-    expect(computeFare(puj, 6.9736, 0).net).toBe(19.95)
+    expect(computeFare(puj, 6.9736, 0).net).toBe(20.74)
   })
 
   it('honours a row that caps the statutory discount at zero', () => {
-    expect(computeFare({ ...puj, discount_pct: 0 }, 6.9736, 20).net).toBe(19.95)
+    expect(computeFare({ ...puj, discount_pct: 0 }, 6.9736, 20).net).toBe(20.74)
   })
 
   it('coerces string rates from an input field', () => {
     const fare = computeFare({ ...puj, per_km: '2.00' }, 6.9736, 20)
-    expect(fare.net).toBe(15.96)
+    expect(fare.net).toBe(16.36)
   })
 })
 
@@ -65,8 +65,8 @@ describe('priceTrip', () => {
   it('prices one leg at the demo fare', () => {
     const trip = priceTrip([6.9736], puj, 20)
     expect(trip.totalKm).toBe(6.97)
-    expect(trip.gross).toBe(19.95)
-    expect(trip.net).toBe(15.96)
+    expect(trip.gross).toBe(20.74)
+    expect(trip.net).toBe(16.6)
     expect(trip.legs).toHaveLength(1)
     expect(trip.legs[0].skipped).toBe(false)
   })
@@ -74,15 +74,15 @@ describe('priceTrip', () => {
   it('charges one base fare for a trip with a via point', () => {
     const trip = priceTrip([3, 3], puj, 0)
     expect(trip.totalKm).toBe(6)
-    expect(trip.gross).toBe(18)
-    expect(trip.net).toBe(18)
+    expect(trip.gross).toBe(18.7)
+    expect(trip.net).toBe(18.7)
     expect(trip.legs).toHaveLength(2)
   })
 
   it('keeps a zero-distance leg aligned without pricing it', () => {
     const trip = priceTrip([6.9736, 0], puj, 20)
     expect(trip.totalKm).toBe(6.97)
-    expect(trip.gross).toBe(19.95)
+    expect(trip.gross).toBe(20.74)
     expect(trip.legs).toHaveLength(2)
     expect(trip.legs[1].skipped).toBe(true)
   })

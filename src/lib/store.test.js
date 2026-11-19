@@ -157,7 +157,7 @@ describe('matrix editing', () => {
     const audit = store.getState().audit
     expect(audit).toHaveLength(1)
     expect(audit[0].entity).toBe('rate')
-    expect(audit[0].before.per_km).toBe(2)
+    expect(audit[0].before.per_km).toBe(2.1)
     expect(audit[0].after.per_km).toBe(2.5)
   })
 
@@ -257,7 +257,7 @@ describe('aggregateCounts', () => {
     expect(counts.pending).toBe(state.advisories.filter((a) => a.status === 'pending').length)
     expect(counts.admins).toBe(1)
     expect(counts.trips).toBe(state.trips.length)
-    expect(counts.oldestRate).toBe('2026-09-28')
+    expect(counts.oldestRate).toBe('2026-11-01')
     expect(Object.keys(counts)).not.toContain('tripRows')
   })
 })

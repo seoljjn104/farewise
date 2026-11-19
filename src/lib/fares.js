@@ -9,7 +9,7 @@
  * never adds a second base fare.
  *
  * All rows are sourced from the LTFRB / DOTr provisional fare matrix that took
- * effect 28 September 2026. No rate here is assumed — every value is cited on
+ * effect 28 November 2026. No rate here is assumed — every value is cited on
  * the row itself and is editable in the Admin Control Panel.
  */
 
@@ -18,48 +18,48 @@ export const FARE_MATRIX_SEED = [
     id: 'puj-traditional',
     code: 'PUJ',
     mode: 'Traditional Jeepney',
-    base_fare: 14.0,
+    base_fare: 14.5,
     base_km: 4,
-    per_km: 2.0,
+    per_km: 2.1,
     discount_pct: 20,
-    effective_from: '2026-09-28',
-    source: 'LTFRB / DOTr provisional fare matrix, effective 28 Sep 2026',
+    effective_from: '2026-11-01',
+    source: 'LTFRB / DOTr provisional fare matrix, effective 28 Nov 2026',
     active: true,
   },
   {
     id: 'puj-modern',
     code: 'MPUJ',
     mode: 'Modern Jeepney (MPUJ)',
-    base_fare: 17.0,
+    base_fare: 17.5,
     base_km: 4,
-    per_km: 2.4,
+    per_km: 2.5,
     discount_pct: 20,
-    effective_from: '2026-09-28',
-    source: 'LTFRB / DOTr provisional fare matrix, effective 28 Sep 2026',
+    effective_from: '2026-11-01',
+    source: 'LTFRB / DOTr provisional fare matrix, effective 28 Nov 2026',
     active: true,
   },
   {
     id: 'bus-ordinary',
     code: 'BUS-O',
     mode: 'Provincial Bus — Ordinary',
-    base_fare: 12.0,
+    base_fare: 12.5,
     base_km: 5,
-    per_km: 2.2,
+    per_km: 2.3,
     discount_pct: 20,
-    effective_from: '2026-09-28',
-    source: 'LTFRB provincial bus fare matrix, effective 28 Sep 2026',
+    effective_from: '2026-11-01',
+    source: 'LTFRB provincial bus fare matrix, effective 28 Nov 2026',
     active: true,
   },
   {
     id: 'bus-aircon',
     code: 'BUS-A',
     mode: 'Provincial Bus — Air-conditioned',
-    base_fare: 12.0,
+    base_fare: 12.5,
     base_km: 5,
-    per_km: 2.45,
+    per_km: 2.55,
     discount_pct: 20,
-    effective_from: '2026-09-28',
-    source: 'LTFRB provincial bus fare matrix, effective 28 Sep 2026',
+    effective_from: '2026-11-01',
+    source: 'LTFRB provincial bus fare matrix, effective 28 Nov 2026',
     active: true,
   },
 ]
