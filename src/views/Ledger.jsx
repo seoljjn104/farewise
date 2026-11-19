@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { useStore, actions, totalsFor } from '../lib/store.js'
 import { peso, km as kmFmt, dayLabel, clockTime, fullDate, isoDay } from '../lib/format.js'
 import Icon from '../components/Icon.jsx'
-import { Btn, Badge, EmptyState, Select } from '../components/ui.jsx'
+import { Btn, EmptyState, Select } from '../components/ui.jsx'
 
 export default function Ledger() {
   const { trips, matrix } = useStore()

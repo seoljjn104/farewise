@@ -33,7 +33,7 @@ function Fit({ points }) {
       return
     }
     map.fitBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 15.5, animate: false })
-  }, [key, map])
+  }, [key, map]) // eslint-disable-line react-hooks/exhaustive-deps
   return null
 }
 

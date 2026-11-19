@@ -100,8 +100,6 @@ const bullet = (t) =>
 
 const pageBreak = () => '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
 
-const CHECK = () => run('\u2610', { font: 'Segoe UI Symbol', size: 20 })
-
 /* ----------------------------------------------------------------- table --- */
 
 function cell(text, o = {}) {
