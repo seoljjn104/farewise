@@ -1,3 +1,4 @@
+import { useId, useRef } from 'react'
 import Icon from './Icon.jsx'
 
 /* ------------------------------------------------------------------ Btn -- */
@@ -12,9 +13,9 @@ export function Btn({
   const base =
     'inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-colors select-none disabled:opacity-45 disabled:pointer-events-none whitespace-nowrap'
   const sizes = {
-    sm: 'h-8 px-3 text-[12px]',
-    md: 'h-10 px-3.5 text-[13px]',
-    lg: 'h-12 px-5 text-[14px]',
+    sm: 'h-8 px-3 text-[12px] pointer-coarse:min-h-11',
+    md: 'h-10 px-3.5 text-[13px] pointer-coarse:min-h-11',
+    lg: 'h-12 px-5 text-[14px] pointer-coarse:min-h-11',
   }
   const variants = {
     primary: 'bg-signal text-signal-ink hover:bg-[#ffd05c]',
@@ -32,12 +33,39 @@ export function Btn({
 }
 
 /* ----------------------------------------------------------------- Field -- */
-export function Field({ label, hint, children, className = '' }) {
+/**
+ * `as="input"` wraps the control in a real <label>, so a click on the caption
+ * focuses it. `as="group"` (the default) labels a group of controls.
+ */
+export function Field({ label, hint, children, className = '', as = 'group' }) {
+  const id = useId()
+  const labelId = `${id}-label`
+
+  if (as === 'input') {
+    return (
+      <label className={`block ${className}`}>
+        {label && (
+          <span className="mb-2 flex items-baseline justify-between gap-3">
+            <span className="label-xs">{label}</span>
+            {hint && <span className="num text-[10px] text-faint">{hint}</span>}
+          </span>
+        )}
+        {children}
+      </label>
+    )
+  }
+
   return (
-    <div className={className}>
+    <div
+      className={className}
+      role="group"
+      aria-labelledby={label ? labelId : undefined}
+    >
       {label && (
         <div className="mb-2 flex items-baseline justify-between gap-3">
-          <span className="label-xs">{label}</span>
+          <span id={labelId} className="label-xs">
+            {label}
+          </span>
           {hint && <span className="num text-[10px] text-faint">{hint}</span>}
         </div>
       )}
@@ -88,21 +116,47 @@ export function Stat({ label, value, sub, icon, tone = 'neutral', className = ''
 
 /* ------------------------------------------------------------ Segmented --- */
 export function Segmented({ options, value, onChange, columns = 2, className = '' }) {
+  const refs = useRef([])
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((o) => o.value === value)
+  )
+
+  function move(event) {
+    const forward = event.key === 'ArrowRight' || event.key === 'ArrowDown'
+    const backward = event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+    if (!forward && !backward) return
+    event.preventDefault()
+    const from = refs.current.findIndex((el) => el === document.activeElement)
+    const base = from === -1 ? selectedIndex : from
+    const next = (base + (forward ? 1 : -1) + options.length) % options.length
+    const option = options[next]
+    if (!option) return
+    onChange(option.value)
+    refs.current[next]?.focus()
+  }
+
   return (
     <div
       className={`grid gap-1.5 ${className}`}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       role="radiogroup"
+      onKeyDown={move}
     >
-      {options.map((o) => {
+      {options.map((o, i) => {
         const on = o.value === value
         return (
           <button
             key={o.value}
+            type="button"
             role="radio"
             aria-checked={on}
+            tabIndex={i === selectedIndex ? 0 : -1}
+            ref={(el) => {
+              refs.current[i] = el
+            }}
             onClick={() => onChange(o.value)}
-            className={`flex min-h-[38px] flex-col justify-center rounded-[9px] border px-2.5 py-2 text-left transition-colors ${
+            className={`flex min-h-[38px] flex-col justify-center rounded-[9px] border px-2.5 py-2 text-left transition-colors pointer-coarse:min-h-11 ${
               on
                 ? 'border-signal bg-signal text-signal-ink'
                 : 'border-line bg-ink-800 text-fg-dim hover:border-line hover:bg-ink-700 hover:text-fg'
