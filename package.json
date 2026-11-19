@@ -1,0 +1,24 @@
+{
+  "name": "farewise",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "FareWise Metro Cebu - Multi-Modal Transit Fare Calculator and Commute Optimization Platform",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-leaflet": "^5.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.4"
+  }
+}

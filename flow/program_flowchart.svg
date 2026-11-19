@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2550" height="3532" viewBox="0 0 1275 1766">
+<defs>
+<marker id="ah" viewBox="0 0 10 8" refX="10" refY="4" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="8" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#000000"/></marker>
+</defs>
+<rect x="0" y="0" width="1275" height="1766" fill="#ffffff"/>
+<rect x="390" y="60" width="260" height="88" rx="44" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="113.828" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle" font-weight="bold">START</text>
+<rect x="260" y="162" width="520" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="217.828" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Read origin, destination and vehicle class</text>
+<rect x="260" y="268" width="520" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="306.278" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Geocode origin and destination (OSM</text>
+<text x="520" y="341.378" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Nominatim)</text>
+<polygon points="520,374 770,422 520,470 270,422" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="431.828" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Geocoding successful?</text>
+<rect x="260" y="502" width="520" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="540.278" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Request route from OSRM and obtain</text>
+<text x="520" y="575.378" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">distance D (km)</text>
+<polygon points="520,608 770,656 520,704 270,656" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="665.828" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Route resolved?</text>
+<rect x="260" y="736" width="520" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="774.278" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Read base fare B, base distance D_base</text>
+<text x="520" y="809.378" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">and rate R</text>
+<polygon points="520,842 770,890 520,938 270,890" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="899.828" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Fare matrix found?</text>
+<rect x="260" y="970" width="520" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="1008.28" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Compute F_gross = B + max(0, D - D_base)</text>
+<text x="520" y="1043.38" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">x R</text>
+<polygon points="520,1076 770,1124 520,1172 270,1124" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="1133.83" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Discount applies?</text>
+<rect x="260" y="1204" width="520" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="1259.83" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">F_final = F_gross x (1 - 0.20)</text>
+<rect x="260" y="1310" width="520" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="1348.28" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Display itemized fare breakdown and route</text>
+<text x="520" y="1383.38" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">map</text>
+<polygon points="520,1416 770,1464 520,1512 270,1464" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="1473.83" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Log this trip?</text>
+<rect x="260" y="1544" width="520" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="1582.28" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">INSERT record into trip_ledger (user, fare,</text>
+<text x="520" y="1617.38" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">time)</text>
+<rect x="390" y="1650" width="260" height="88" rx="44" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="520" y="1703.83" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle" font-weight="bold">END</text>
+<rect x="860" y="610" width="370" height="92" rx="10" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+<text x="1045" y="665.828" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="27" fill="#000000" text-anchor="middle">Display error message</text>
+<polyline points="520,148 520,162" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,254 520,268" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,360 520,374" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,470 520,502" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,594 520,608" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,704 520,736" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,828 520,842" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,938 520,970" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,1062 520,1076" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,1172 520,1204" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,1296 520,1310" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,1402 520,1416" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,1512 520,1544" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="520,1636 520,1650" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<text x="566" y="494" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">Yes</text>
+<text x="566" y="728" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">Yes</text>
+<text x="566" y="962" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">Yes</text>
+<text x="566" y="1196" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">Yes</text>
+<text x="566" y="1536" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">Yes</text>
+<polyline points="770,422 830,422 830,656" fill="none" stroke="#000000" stroke-width="2.2"/>
+<text x="796" y="406" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">No</text>
+<polyline points="770,656 830,656 830,656" fill="none" stroke="#000000" stroke-width="2.2"/>
+<text x="796" y="640" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">No</text>
+<polyline points="770,890 830,890 830,656" fill="none" stroke="#000000" stroke-width="2.2"/>
+<text x="796" y="874" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">No</text>
+<polyline points="830,656 860,656" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="1045,702 1045,1694 650,1694" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<polyline points="270,1124 180,1124 180,1250 260,1250" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<text x="224" y="1108" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">No</text>
+<polyline points="270,1464 180,1464 180,1694 390,1694" fill="none" stroke="#000000" stroke-width="2.2" stroke-linejoin="miter" marker-end="url(#ah)"/>
+<text x="224" y="1448" font-family="Calibri, Carlito, 'Segoe UI', Arial, sans-serif" font-size="22" fill="#000000" text-anchor="middle">No</text>
+</svg>

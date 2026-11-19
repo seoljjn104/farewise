@@ -1,0 +1,244 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   FareWise design tokens
+   Direction: transit wayfinding / operations console.
+   Dark ground, jeepney-amber signal accent, route-teal for movement.
+   All money and distance set in mono with tabular figures.
+   ========================================================================== */
+
+@theme {
+  --font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+
+  --color-ink-950: #070a0e;
+  --color-ink-900: #0a0e13;
+  --color-ink-850: #0e1319;
+  --color-ink-800: #12171f;
+  --color-ink-750: #161d26;
+  --color-ink-700: #1a212b;
+  --color-ink-600: #222b38;
+
+  --color-line: #263040;
+  --color-line-soft: #1d2530;
+
+  --color-fg: #eef2f6;
+  --color-fg-dim: #a9b6c6;
+  --color-muted: #6f7d8e;
+  --color-faint: #4a5563;
+
+  --color-signal: #ffc42e;
+  --color-signal-ink: #241c05;
+  --color-route: #3ddc97;
+  --color-route-dim: #17392a;
+  --color-danger: #ff6b6b;
+  --color-danger-dim: #3a1c1c;
+  --color-info: #58a6ff;
+  --color-info-dim: #14253a;
+
+  --radius-panel: 14px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-ink-900);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+
+  ::selection {
+    background: var(--color-signal);
+    color: var(--color-signal-ink);
+  }
+
+  input,
+  button,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  input:focus-visible,
+  button:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+
+  /* Thin operator-console scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-600) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-ink-600);
+    border-radius: 99px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-line);
+    background-clip: content-box;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Utilities
+   ------------------------------------------------------------------------- */
+
+/* Signage-style micro label. Used for every field caption and section eyebrow. */
+@utility label-xs {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Tabular money / distance figures */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Hairline rule that fades out */
+@utility rule-fade {
+  background-image: linear-gradient(to right, var(--color-line), transparent);
+  height: 1px;
+}
+
+/* The diagonal hatch used on ticket stubs and empty states */
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-line-soft) 0px,
+    var(--color-line-soft) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+}
+
+/* Perforated ticket edge */
+@utility perforation {
+  background-image: radial-gradient(circle at 3px 50%, var(--color-ink-900) 2.4px, transparent 2.6px);
+  background-size: 9px 100%;
+  background-repeat: repeat-x;
+}
+
+@utility panel {
+  background: var(--color-ink-850);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+}
+
+/* ---------------------------------------------------------------------------
+   Leaflet overrides — make the map read as part of the console
+   ------------------------------------------------------------------------- */
+
+.leaflet-container {
+  background: var(--color-ink-900);
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+/* Cool the raster tiles down so they sit inside the dark shell */
+.fw-tiles-dark {
+  filter: grayscale(0.55) invert(1) contrast(1.12) brightness(0.82) hue-rotate(175deg) saturate(0.75);
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: var(--color-ink-800);
+  color: var(--color-fg);
+  border-bottom-color: var(--color-line);
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  font-weight: 600;
+}
+.leaflet-bar a:hover {
+  background: var(--color-ink-700);
+  color: var(--color-signal);
+}
+.leaflet-bar {
+  border: 1px solid var(--color-line);
+  border-radius: 9px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
+.leaflet-control-attribution {
+  background: rgb(10 14 19 / 0.82) !important;
+  color: var(--color-faint) !important;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 6px 0 0 0;
+  backdrop-filter: blur(6px);
+}
+.leaflet-control-attribution a {
+  color: var(--color-muted) !important;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--color-ink-800);
+  color: var(--color-fg);
+  border: 1px solid var(--color-line);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.55);
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 11px;
+}
+.leaflet-popup-content {
+  margin: 11px 13px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Map marker pins are drawn as divIcons — strip Leaflet's default box */
+.fw-pin {
+  background: transparent;
+  border: 0;
+}
+
+/* Route-line dash animation, honoured only when motion is welcome */
+@media (prefers-reduced-motion: no-preference) {
+  .fw-dash {
+    animation: fw-dash-move 2.4s linear infinite;
+  }
+}
+@keyframes fw-dash-move {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
