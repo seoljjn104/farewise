@@ -569,7 +569,7 @@ function FareDrawer({
 
           <div className="h-10 w-px shrink-0 bg-line" />
 
-          <div className="flex min-w-0 flex-1 items-center gap-6">
+          <div className="hidden min-w-0 flex-1 items-center gap-4 sm:flex">
             <SummaryBit label="Distance" value={route.km ? kmFmt(trip.totalKm) : '—'} />
             <SummaryBit label="Travel time" value={route.min ? duration(route.min) : '—'} />
             <SummaryBit label="Legs" value={hasResult ? String(trip.legs.length) : '—'} />
@@ -579,7 +579,7 @@ function FareDrawer({
               hint={mode?.mode}
             />
             {trip?.discountAmount > 0 && (
-              <div className="ml-auto shrink-0">
+              <div className="ml-auto hidden shrink-0 lg:block">
                 <Badge tone="route" icon="check">
                   Saved {peso(trip.discountAmount)}
                 </Badge>
@@ -592,6 +592,7 @@ function FareDrawer({
             icon={logged ? 'check' : 'plus'}
             disabled={!hasResult || logged}
             onClick={onLog}
+            className="ml-auto shrink-0"
           >
             {logged ? 'Logged to ledger' : 'Log this trip'}
           </Btn>

@@ -3,34 +3,48 @@
  * Node 24 has global fetch and WebSocket, so this needs no dependencies.
  *
  *   node scripts/shoot.mjs
+ *
+ * Set CHROME_PATH to use a different browser binary. FW_URL points the run at
+ * another server (default: the local Vite preview on port 4173).
  */
 import { spawn } from 'node:child_process'
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+const CANDIDATES = [
+  process.env.CHROME_PATH,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+].filter(Boolean)
+const CHROME = CANDIDATES.find((p) => existsSync(p))
+if (!CHROME) {
+  console.error('No Chrome or Edge binary found. Set CHROME_PATH.')
+  process.exit(1)
+}
+
 const BASE = process.env.FW_URL || 'http://127.0.0.1:4173'
 const OUT = 'shots'
 const PORT = 9333
-const PROFILE = 'C:/Users/shane/AppData/Local/Temp/opencode/fw-chrome'
+const PROFILE = process.env.FW_PROFILE || 'C:/Users/shane/AppData/Local/Temp/opencode/fw-chrome'
 
 const SHOTS = [
-  { name: '01-plan', hash: '#/plan', w: 1440, h: 1080, settle: 4500 },
-  { name: '02-plan-breakdown', hash: '#/plan', w: 1440, h: 1080, settle: 4500, click: 'drawer' },
-  { name: '03-ledger', hash: '#/ledger', w: 1440, h: 1120, settle: 1600 },
-  { name: '04-budget', hash: '#/budget', w: 1440, h: 1240, settle: 1600 },
-  { name: '05-advisories', hash: '#/advisories', w: 1440, h: 1120, settle: 1400 },
-  { name: '06-admin-tariff', hash: '#/admin', w: 1440, h: 1120, settle: 1400 },
+  { name: '01-plan-desktop', hash: '#/plan', w: 1440, h: 900, settle: 4800 },
   {
-    name: '07-admin-moderation',
-    hash: '#/admin',
-    w: 1440,
-    h: 1120,
-    settle: 1400,
-    click: 'moderation',
+    name: '02-plan-mobile-longnames',
+    hash: '#/plan',
+    w: 390,
+    h: 844,
+    settle: 4800,
+    mobile: true,
+    prep: 'longNames',
+    reload: true,
   },
-  { name: '08-mobile-plan', hash: '#/plan', w: 390, h: 844, settle: 4200, mobile: true },
+  { name: '03-trips-mobile', hash: '#/trips', w: 390, h: 844, settle: 1800, mobile: true },
+  { name: '04-budget-mobile', hash: '#/budget', w: 390, h: 844, settle: 1800, mobile: true },
+  { name: '05-alerts-mobile', hash: '#/alerts', w: 390, h: 844, settle: 1800, mobile: true },
+  { name: '06-more-mobile', hash: '#/more', w: 390, h: 844, settle: 1400, mobile: true },
+  { name: '07-admin-desktop', hash: '#/admin', w: 1440, h: 900, settle: 1800, nav: false },
 ]
 
 class CDP {
@@ -62,6 +76,9 @@ class CDP {
         }
       }, 30000)
     })
+  }
+  evaluate(expression, returnByValue = true) {
+    return this.send('Runtime.evaluate', { expression, returnByValue, awaitPromise: true })
   }
 }
 
@@ -99,6 +116,7 @@ const chrome = spawn(
 )
 
 const report = []
+const problems = []
 
 try {
   await waitForPort()
@@ -127,21 +145,38 @@ try {
       mobile: Boolean(s.mobile),
     })
 
-    await cdp.send('Page.navigate', { url: BASE + '/' + s.hash })
-    await sleep(s.settle)
+    /* The long-name case needs a persisted state, so it is built through the
+       real settings screen and then reloaded. Not a prettier screenshot. */
+    if (s.prep === 'longNames') {
+      await cdp.send('Page.navigate', { url: BASE + '/#/more' })
+      await sleep(1600)
+      await cdp.evaluate(`(() => {
+        const input = document.querySelector('input[type="number"]')
+        if (!input) return 'no-allowance-input'
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+        setter.call(input, '950')
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        return 'committed'
+      })()`)
+      await sleep(500)
+      await cdp.evaluate(`(() => {
+        const state = JSON.parse(localStorage.getItem('farewise.v2') || 'null')
+        if (!state) return 'no-state'
+        state.settings = {
+          ...state.settings,
+          homeId: 'cit',
+          schoolId: 'usc',
+          monthlyAllowance: 900,
+        }
+        localStorage.setItem('farewise.v2', JSON.stringify(state))
+        return 'seeded'
+      })()`)
+      await sleep(200)
+    }
 
-    if (s.click === 'drawer') {
-      await cdp.send('Runtime.evaluate', {
-        expression: `document.querySelector('[aria-expanded="false"]')?.click()`,
-      })
-      await sleep(700)
-    }
-    if (s.click === 'moderation') {
-      await cdp.send('Runtime.evaluate', {
-        expression: `[...document.querySelectorAll('button')].find(b => b.textContent.trim().startsWith('Moderation'))?.click()`,
-      })
-      await sleep(600)
-    }
+    const url = BASE + '/' + (s.reload ? '?stress=1' : '') + s.hash
+    await cdp.send('Page.navigate', { url })
+    await sleep(s.settle)
 
     const { data } = await cdp.send('Page.captureScreenshot', {
       format: 'png',
@@ -152,13 +187,9 @@ try {
     mkdirSync(OUT, { recursive: true })
     writeFileSync(file, Buffer.from(data, 'base64'))
 
-    // surface anything the page logged
-    const console_ = cdp.events
-      .filter((e) => e.method === 'Runtime.consoleAPICalled')
-      .map((e) => ({
-        level: e.params.type,
-        text: e.params.args.map((a) => a.value ?? a.description ?? a.type).join(' '),
-      }))
+    const consoleErrors = cdp.events
+      .filter((e) => e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error')
+      .map((e) => e.params.args.map((a) => a.value ?? a.description ?? a.type).join(' '))
     const exceptions = cdp.events
       .filter((e) => e.method === 'Runtime.exceptionThrown')
       .map((e) => e.params.exceptionDetails.exception?.description || e.params.exceptionDetails.text)
@@ -166,32 +197,40 @@ try {
       .filter((e) => e.method === 'Log.entryAdded' && e.params.entry.level === 'error')
       .map((e) => e.params.entry.text)
 
-    // confirm the app actually rendered something
-    const { result } = await cdp.send('Runtime.evaluate', {
-      expression: `JSON.stringify({
-        nodes: document.getElementById('root')?.children.length ?? 0,
-        errorBoundary: /Render error/.test(document.body.innerText||''),
-        imgs: document.querySelectorAll('img.leaflet-tile').length,
-        marker: document.querySelectorAll('.fw-pin').length,
-        drawerExpanded: document.querySelector('[aria-expanded]')?.getAttribute('aria-expanded'),
-        mapBox: (() => { const m = document.querySelector('.leaflet-container'); if(!m) return null; const r=m.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)] })(),
-        panelBox: (() => { const p = document.querySelector('aside'); if(!p) return null; const r=p.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)] })(),
-        hOverflow: document.documentElement.scrollWidth > window.innerWidth,
-        text: (document.body.innerText || '').replace(/\\s+/g,' ').slice(0, 1400)
-      })`,
-      returnByValue: true,
-    })
+    const { result } = await cdp.evaluate(`JSON.stringify({
+      nodes: document.getElementById('root')?.children.length ?? 0,
+      errorBoundary: /Something went wrong on this screen|Render error/.test(document.body.innerText||''),
+      bottomNav: (() => { const n = [...document.querySelectorAll('nav[aria-label="Primary"]')].find(x => x.getBoundingClientRect().height > 0); if (!n) return null; const r = n.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)] })(),
+      tabCount: (() => { const n = [...document.querySelectorAll('nav[aria-label="Primary"]')].find(x => x.getBoundingClientRect().height > 0); return n ? n.querySelectorAll('a').length : 0 })(),
+      imgs: document.querySelectorAll('img.leaflet-tile').length,
+      marker: document.querySelectorAll('.fw-pin').length,
+      hOverflow: document.documentElement.scrollWidth > window.innerWidth,
+      vh: window.innerHeight,
+      text: (document.body.innerText || '').replace(/\\s+/g,' ').slice(0, 1200)
+    })`)
 
+    const page = JSON.parse(result.value)
     report.push({
       shot: s.name,
       size: `${s.w}x${s.h}`,
-      page: JSON.parse(result.value),
-      consoleErrors: console_.filter((c) => c.level === 'error'),
-      consoleWarnings: console_.filter((c) => c.level === 'warning').slice(0, 4),
+      page,
+      consoleErrors,
       exceptions,
       logErrors,
     })
-    console.log(`shot ${s.name} (${s.w}x${s.h})`)
+
+    if (page.hOverflow) problems.push(`${s.name}: horizontal overflow`)
+    if (page.errorBoundary) problems.push(`${s.name}: error boundary`)
+    if (page.nodes === 0) problems.push(`${s.name}: rendered nothing`)
+    if (s.nav !== false && !page.bottomNav) problems.push(`${s.name}: no navigation`)
+    if (s.nav !== false && page.tabCount !== 5) problems.push(`${s.name}: ${page.tabCount} tabs`)
+    if (exceptions.length) problems.push(`${s.name}: ${exceptions[0]}`)
+    if (consoleErrors.length) problems.push(`${s.name}: console error: ${consoleErrors[0]}`)
+    if (logErrors.length) problems.push(`${s.name}: log error: ${logErrors[0]}`)
+
+    console.log(
+      `shot ${s.name} (${s.w}x${s.h}) nodes=${page.nodes} overflow=${page.hOverflow} nav=${JSON.stringify(page.bottomNav)}`
+    )
   }
 
   ws.close()
@@ -201,16 +240,23 @@ try {
 
 writeFileSync(join(OUT, 'report.json'), JSON.stringify(report, null, 2))
 
-console.log('\n================ CONSOLE REPORT ================')
+console.log('\n================ REPORT ================')
 for (const r of report) {
-  console.log(`\n## ${r.shot}  ${r.size}`)
   const p = r.page
   console.log(
-    `   dom: nodes=${p.nodes} errorBoundary=${p.errorBoundary} tiles=${p.imgs} markers=${p.marker} drawer=${p.drawerExpanded} map=${JSON.stringify(p.mapBox)} panel=${JSON.stringify(p.panelBox)} hOverflow=${p.hOverflow}`
+    `\n## ${r.shot}  ${r.size}\n   nodes=${p.nodes} boundary=${p.errorBoundary} overflow=${p.hOverflow} nav=${JSON.stringify(p.bottomNav)} tabs=${p.tabCount} tiles=${p.imgs} markers=${p.marker}`
   )
   if (r.exceptions.length) r.exceptions.forEach((e) => console.log('   EXCEPTION: ' + e))
   if (r.logErrors.length) r.logErrors.forEach((e) => console.log('   LOG-ERROR: ' + e))
-  if (r.consoleErrors.length) r.consoleErrors.forEach((e) => console.log('   CONSOLE-ERR: ' + e.text))
+  if (r.consoleErrors.length) r.consoleErrors.forEach((e) => console.log('   CONSOLE-ERR: ' + e))
   console.log('   text: ' + p.text)
 }
-console.log('\nwrote shots/report.json')
+
+if (problems.length) {
+  console.log('\n================ PROBLEMS ================')
+  problems.forEach((p) => console.log(' ! ' + p))
+  process.exitCode = 1
+} else {
+  console.log('\nAll shots clean.')
+}
+console.log('wrote shots/report.json')
