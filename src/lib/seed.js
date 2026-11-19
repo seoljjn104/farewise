@@ -161,3 +161,17 @@ export const SETTINGS_SEED = {
   schoolId: 'itpark',
   weeklyCommuteDays: 5,
 }
+
+/**
+ * The local demo administrator. Identity only: the password gate lives in
+ * `src/lib/auth.js` and, once hosted, in the provider. There is no password
+ * field here and there must never be one.
+ */
+export const ADMIN_SEED = {
+  id: 'admin-local',
+  displayName: 'Local admin',
+  role: 'admin',
+  mfaEnrolled: false,
+  createdAt: new Date().toISOString(),
+}
+
