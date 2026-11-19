@@ -1,12 +1,13 @@
 # FareWise Metro Cebu
 
-A multi-modal transit fare calculator and commute-cost tracker for Metro Cebu,
-built as a progressive web application. It prices a journey across every active
-vehicle class, applies the statutory 20% discount for students, senior citizens
-and PWDs, and keeps a personal ledger so a commuter can see what a month of
-travel actually costs.
+A multi-modal transit fare calculator and commute-cost tracker for Metro Cebu.
+It prices a journey across every active vehicle class, applies the statutory
+20% discount for students, senior citizens and PWDs, and keeps a personal ledger
+so a commuter can see what a month of travel actually costs.
 
 This is the running prototype described in Section 9 of the project charter.
+There is no manifest, no service worker, and no account system. Everything the
+app needs it derives locally.
 
 ## Run it
 
@@ -36,7 +37,8 @@ cheapest.
 **Fare breakdown** — Expands from the foot of the map and shows exactly how the
 fare was assembled: base fare for the first `D_base` kilometres, the excess
 charge for every kilometre beyond that, the gross subtotal, the statutory
-discount and the amount payable. Multi-leg trips repeat the arithmetic per leg.
+discount and the amount payable. A trip is one fare over total distance; via
+points add distance, not a second minimum fare.
 
 **Ledger** — Every logged journey as a row: route, vehicle class, commuter type,
 road distance, fare paid and discount saved. Filter by class, sort by recency,
@@ -73,11 +75,12 @@ F_gross = B + max(0, D − D_base) × R
 F_net   = F_gross × (1 − discount_pct / 100)
 ```
 
-Worked example — Mambaling to IT Park, 6.97 km, student, traditional jeepney:
+Worked example — Mambaling to IT Park, 6.9736 km, student, traditional jeepney:
 
 ```
-₱14.00 + (6.97 − 4) × ₱2.00 = ₱19.95      gross
-₱19.95 × 0.80               = ₱15.96      payable
+6.9736 km
+₱14.00 + (6.9736 − 4) × ₱2.00 = ₱19.9472 → ₱19.95 gross
+₱19.9472 × 0.80             = ₱15.95776 → ₱15.96 payable
 ```
 
 Tricycle fares are deliberately excluded: they are set per LGU and no single
@@ -114,10 +117,11 @@ src/
     MapView.jsx           Leaflet map, OSM tiles, dark filter, divIcon pins
     PlaceInput.jsx        gazetteer autocomplete
     BarChart.jsx          hand-rolled bar chart (no chart library)
+    Sheet.jsx             dialog/sheet primitive used by Plan, Budget, Alerts
     ui.jsx                Stat / Row / Chip / Button primitives
     Icon.jsx              inline SVG icon set (no icon library)
   views/
-    Plan.jsx  Ledger.jsx  Budget.jsx  Advisories.jsx  Admin.jsx
+    Plan.jsx  Trips.jsx  Budget.jsx  Advisories.jsx
   data/places.json        27 curated Metro Cebu places
 scripts/shoot.mjs         dependency-free CDP screenshot + assertion driver
 shots/                    captured screens + report.json
@@ -146,13 +150,31 @@ No charting library and no icon library — the bar chart is a flex layout and t
 icons are inline SVG, which keeps the bundle small and the visual language
 consistent.
 
+## Demo admin
+
+Copy `.env.example` to `.env.local`, set `VITE_ADMIN_DEMO=1` and
+`VITE_ADMIN_DEMO_PASSWORD=farewise-demo`, restart the dev server, and open
+`#/admin/login`. The demo password is a documented gate — anyone with access to
+the `.env.local` file can read it. Real authorisation arrives with the hosted
+milestone (provider credentials plus `admin_users` RLS).
+
+---
+
+Test commands:
+
+```bash
+npm test        # run vitest
+npm run lint    # run ESLint
+npm run check   # run lint + build + shoot harness
+```
+
 ## Known alpha-build deviations
 
 The charter specifies a hosted Supabase / PostgreSQL / PostGIS back end. This
-prototype keeps its records in `localStorage` under the key `farewise.v1`, with
+prototype keeps its records in `localStorage` under the key `farewise.v2`, with
 the same table shapes (`fare_matrices`, `trip_ledger`, `advisories`) behind a
-single data adapter, so it runs with no account, no server and no cost. Replacing
-the adapter with the hosted client is a configuration change rather than a
-rewrite. This is disclosed in the charter's Section 9 implementation note.
+one-way migration adapter from `farewise.v1`. The migration script lives in
+`scripts/migrate-v1-to-v2.js` and converts the old key to the new one. Real
+authorisation arrives with the hosted milestone.
 
 The interface was prototyped directly in code rather than in Figma.
