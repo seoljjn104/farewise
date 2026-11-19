@@ -36,7 +36,13 @@ function estimate(points) {
     const km = straight * ROAD_FACTOR
     legs.push({ km: round(km), min: round((km / 18) * 60, 1) }) // ≈18 km/h Metro Cebu urban mean
   }
-  return { source: 'estimate', legs, path }
+  return {
+    source: 'estimate',
+    legs,
+    path,
+    km: round(legs.reduce((sum, leg) => sum + leg.km, 0)),
+    min: round(legs.reduce((sum, leg) => sum + leg.min, 0), 1),
+  }
 }
 
 const round = (n, d = 3) => Math.round(n * 10 ** d) / 10 ** d

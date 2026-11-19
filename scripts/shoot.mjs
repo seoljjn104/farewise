@@ -38,7 +38,6 @@ const SHOTS = [
     settle: 4800,
     mobile: true,
     prep: 'longNames',
-    reload: true,
   },
   { name: '03-trips-mobile', hash: '#/trips', w: 390, h: 844, settle: 1800, mobile: true },
   { name: '04-budget-mobile', hash: '#/budget', w: 390, h: 844, settle: 1800, mobile: true },
@@ -61,6 +60,42 @@ const SHOTS = [
     settle: 1400,
     nav: false,
     adminLogin: true,
+  },
+  {
+    name: '09-plan-breakdown',
+    hash: '#/plan',
+    w: 390,
+    h: 844,
+    settle: 1800,
+    mobile: true,
+    clickText: 'Breakdown',
+  },
+  {
+    name: '10-plan-map',
+    hash: '#/plan',
+    w: 390,
+    h: 844,
+    settle: 1800,
+    mobile: true,
+    clickLabel: 'Open the route map',
+  },
+  {
+    name: '11-plan-logged',
+    hash: '#/plan',
+    w: 390,
+    h: 844,
+    settle: 1800,
+    mobile: true,
+    logCheck: true,
+  },
+  {
+    name: '12-plan-duplicate',
+    hash: '#/plan',
+    w: 390,
+    h: 844,
+    settle: 1800,
+    mobile: true,
+    dupCheck: true,
   },
 ]
 
@@ -191,7 +226,7 @@ try {
       await sleep(200)
     }
 
-    const url = BASE + '/' + (s.reload ? '?stress=1' : '') + s.hash
+    const url = `${BASE}/?shot=${encodeURIComponent(s.name)}${s.hash}`
     await cdp.send('Page.navigate', { url })
     await sleep(s.settle)
 
@@ -224,6 +259,107 @@ try {
       }
     }
 
+    if (s.clickText || s.clickLabel) {
+      const finder = s.clickLabel
+        ? `document.querySelector(${JSON.stringify(`[aria-label="${s.clickLabel}"]`)})`
+        : `[...document.querySelectorAll('button')].find((b) => b.textContent.trim().includes(${JSON.stringify(s.clickText)}))`
+      const clicked = await cdp.evaluate(`(() => {
+        const el = ${finder}
+        if (!el) return 'not-found'
+        el.click()
+        return 'clicked'
+      })()`)
+      if (clicked.result.value !== 'clicked') problems.push(`${s.name}: ${clicked.result.value}`)
+      await sleep(900)
+    }
+
+    if (s.logCheck) {
+      const before = await cdp.evaluate(
+        `JSON.parse(localStorage.getItem('farewise.v2') || '{}').trips?.length || 0`
+      )
+      const clicked = await cdp.evaluate(`(() => {
+        const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Log this trip')
+        if (!b) return 'not-found'
+        b.scrollIntoView({ block: 'center' })
+        b.click()
+        return 'clicked'
+      })()`)
+      if (clicked.result.value !== 'clicked') problems.push(`${s.name}: ${clicked.result.value}`)
+      await sleep(500)
+      const after = await cdp.evaluate(
+        `JSON.parse(localStorage.getItem('farewise.v2') || '{}').trips?.length || 0`
+      )
+      if (after.result.value !== before.result.value + 1) {
+        problems.push(`${s.name}: trips ${before.result.value} -> ${after.result.value}`)
+      }
+      const message = await cdp.evaluate(
+        `([...document.querySelectorAll('p')].find((p) => /Saved|priced route/.test(p.textContent)) || {}).textContent || ''`
+      )
+      if (!/Saved/.test(message.result.value)) {
+        problems.push(`${s.name}: no saved confirmation (${message.result.value.trim()})`)
+      }
+    }
+
+    if (s.dupCheck) {
+      const outcome = await cdp.evaluate(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+
+        const clearDestination = document.querySelector('[aria-label="Clear destination"]')
+        if (!clearDestination) return 'no-clear-destination'
+        clearDestination.click()
+        await wait(250)
+
+        const clearOrigin = document.querySelector('[aria-label="Clear origin"]')
+        if (!clearOrigin) return 'no-clear-origin'
+        clearOrigin.click()
+        await wait(250)
+
+        async function pick(label, query) {
+          const input = document.querySelector('input[aria-label="' + label + '"]')
+          if (!input) return false
+          setter.call(input, query)
+          input.dispatchEvent(new Event('input', { bubbles: true }))
+          await wait(350)
+          const option = document.querySelector('[role="option"]')
+          if (!option) return false
+          option.click()
+          await wait(450)
+          return true
+        }
+
+        if (!(await pick('Origin', 'Colon'))) return 'no-origin-option'
+        if (!(await pick('Destination', 'Colon'))) return 'no-destination-option'
+
+        await wait(500)
+        const alert = document.querySelector('[role="alert"]')
+        const log = [...document.querySelectorAll('button')].find(
+          (b) => b.textContent.trim() === 'Log this trip'
+        )
+        return JSON.stringify({
+          alert: alert ? alert.textContent.trim() : '',
+          disabled: log ? log.disabled : null,
+        })
+      })()`)
+      let seen = null
+      try {
+        seen = JSON.parse(outcome.result.value)
+      } catch {
+        /* reported below */
+      }
+      if (!seen) {
+        problems.push(`${s.name}: ${outcome.result.value}`)
+      } else {
+        if (!/same place/.test(seen.alert)) {
+          problems.push(`${s.name}: no duplicate alert (${seen.alert})`)
+        }
+        if (seen.disabled !== true) {
+          problems.push(`${s.name}: Log still enabled`)
+        }
+      }
+      await sleep(300)
+    }
+
     const { data } = await cdp.send('Page.captureScreenshot', {
       format: 'png',
       captureBeyondViewport: false,
@@ -251,6 +387,29 @@ try {
       imgs: document.querySelectorAll('img.leaflet-tile').length,
       marker: document.querySelectorAll('.fw-pin').length,
       hOverflow: document.documentElement.scrollWidth > window.innerWidth,
+      overflowing: (() => {
+        const w = window.innerWidth
+        const scroller = (el) => {
+          for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+            const ox = getComputedStyle(node).overflowX
+            if (ox === 'auto' || ox === 'scroll') return true
+          }
+          return false
+        }
+        return [...document.querySelectorAll('main *')]
+          .filter((el) => {
+            if (el.closest('.leaflet-container')) return false
+            if (scroller(el)) return false
+            const r = el.getBoundingClientRect()
+            return r.width > 0 && (r.right > w + 1 || r.left < -1)
+          })
+          .slice(0, 8)
+          .map((el) => {
+            const r = el.getBoundingClientRect()
+            const cls = String(el.className || '').replace(/\\s+/g, '.').slice(0, 48)
+            return el.tagName.toLowerCase() + (cls ? '.' + cls : '') + ' [' + Math.round(r.left) + ',' + Math.round(r.right) + ']'
+          })
+      })(),
       vh: window.innerHeight,
       text: (document.body.innerText || '').replace(/\\s+/g,' ').slice(0, 1200)
     })`)
@@ -266,6 +425,9 @@ try {
     })
 
     if (page.hOverflow) problems.push(`${s.name}: horizontal overflow`)
+    if (page.overflowing?.length) {
+      problems.push(`${s.name}: clipped element ${page.overflowing[0]}`)
+    }
     if (page.errorBoundary) problems.push(`${s.name}: error boundary`)
     if (page.nodes === 0) problems.push(`${s.name}: rendered nothing`)
     if (s.nav !== false && !page.bottomNav) problems.push(`${s.name}: no navigation`)
@@ -277,6 +439,9 @@ try {
     console.log(
       `shot ${s.name} (${s.w}x${s.h}) nodes=${page.nodes} overflow=${page.hOverflow} nav=${JSON.stringify(page.bottomNav)}`
     )
+    if (page.overflowing?.length) {
+      page.overflowing.forEach((el) => console.log('   clip: ' + el))
+    }
   }
 
   ws.close()
