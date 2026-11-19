@@ -166,6 +166,18 @@ describe('matrix editing', () => {
     store.actions.updateMatrixRow('puj-traditional', { per_km: 2.5 })
     expect(store.getState().audit).toHaveLength(0)
   })
+
+  it('audits adding, deleting, and restoring rate rows', async () => {
+    const { store } = await loadStore()
+    const id = store.actions.addMatrixRow()
+    store.actions.deleteMatrixRow(id)
+    const count = store.actions.restoreMatrixDefaults()
+
+    expect(count).toBe(FARE_MATRIX_SEED.length)
+    const actionsSeen = store.getState().audit.map((entry) => entry.action)
+    expect(actionsSeen).toEqual(['restore', 'delete', 'add'])
+    expect(store.getState().audit[0].after.restored).toBe(FARE_MATRIX_SEED.length)
+  })
 })
 
 describe('advisories', () => {

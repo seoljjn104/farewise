@@ -197,7 +197,12 @@ export const actions = {
       source: 'Manually entered via Admin Control Panel',
       active: true,
     })
-    commit({ ...state, matrix: [...state.matrix, row] })
+    commit(
+      withAudit(
+        { ...state, matrix: [...state.matrix, row] },
+        auditEntry('add', 'rate', row.id, null, { ...row })
+      )
+    )
     return row.id
   },
   deleteMatrixRow(id) {
@@ -206,7 +211,12 @@ export const actions = {
     const remaining = state.matrix.filter((r) => r.id !== id)
     // A store with no billable row cannot price anything. Keep the last one.
     if (billableRows(remaining).length === 0) return
-    commit({ ...state, matrix: remaining })
+    commit(
+      withAudit(
+        { ...state, matrix: remaining },
+        auditEntry('delete', 'rate', id, { ...row }, null)
+      )
+    )
   },
   restoreMatrixDefaults() {
     const seedIds = new Set(FARE_MATRIX_SEED.map((r) => r.id))
@@ -214,7 +224,13 @@ export const actions = {
       .filter((r) => !seedIds.has(r.id))
       .map((r) => sanitizeRateRow(r))
     const restored = FARE_MATRIX_SEED.map((r) => ({ ...r }))
-    commit({ ...state, matrix: [...restored, ...custom] })
+    commit(
+      withAudit(
+        { ...state, matrix: [...restored, ...custom] },
+        auditEntry('restore', 'rate', 'matrix', null, { restored: restored.length })
+      )
+    )
+    return restored.length
   },
 
   /* ----------------------------------------------------------- advisories */
