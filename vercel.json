@@ -3,12 +3,8 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "env": {
-    "VITE_ADMIN_DEMO": {
-      "value": "1"
-    },
-    "VITE_ADMIN_DEMO_PASSWORD": {
-      "value": "farewise-demo"
-    }
+    "VITE_ADMIN_DEMO": "1",
+    "VITE_ADMIN_DEMO_PASSWORD": "farewise-demo"
   },
   "headers": [
     {
