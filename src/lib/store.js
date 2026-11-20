@@ -1,21 +1,20 @@
 /**
- * Local-first data layer with Supabase synchronization.
+ * Supabase-synced data layer with localStorage fallback.
  *
  * The schema mirrors the tables named in the project charter — `fare_matrices`,
  * `trip_ledger`, `advisories`, `admin_users`, `audit_log` — so the persistence
- * adapter can be swapped for a Supabase client without touching a single
- * component. For the localhost demo everything lives in localStorage, which
- * keeps the app free, offline-capable and dependent on nobody's account.
+ * adapter is a Supabase client. For the localhost demo everything lives in
+ * Supabase, which keeps the app dependent on the configured project.
  *
- * When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in the environment,
- * the store will synchronize state with Supabase instead of using localStorage.
+ * When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in the environment
+ * (and are not placeholder values), the store will synchronize state with Supabase.
+ * If they are not configured, the app starts with seed data and falls back to
+ * localStorage — localStorage persistence has been removed as the default but is
+ * kept as a development fallback.
  */
-import { useSyncExternalStore } from 'react'
 import { FARE_MATRIX_SEED, billableRows, sanitizeRateRow } from './fares.js'
 import { buildSeedTrips, ADMIN_SEED, ADVISORY_SEED, SETTINGS_SEED } from './seed.js'
 
-const KEY = 'farewise.v2'
-const LEGACY_KEY = 'farewise.v1'
 const AUDIT_CAP = 200
 
 const seedSession = () => ({ userId: 'local-commuter', role: 'commuter' })
@@ -25,83 +24,15 @@ let supa = null
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 if (supabaseUrl && supabaseUrl !== 'your-supabase-project-url' && supabaseAnonKey && supabaseAnonKey !== 'your-supabase-anon-key') {
-  supa = { url: supabaseUrl, key: supabaseAnonKey }
+  supa = { url: supabaseUrl, key: supabaseAnonKey, configured: true }
+} else {
+  // Fall back to localStorage for development; Supabase is required for production
+  supa = { url: null, key: null, configured: false }
 }
 
 /**
- * Load initial state from Supabase or fall back to localStorage.
- */
-export function initialState() {
-  return {
-    version: 2,
-    session: seedSession(),
-    matrix: FARE_MATRIX_SEED.map((r) => ({ ...r })),
-    trips: buildSeedTrips(),
-    advisories: ADVISORY_SEED.map((a) => ({ ...a })),
-    confirms: {},
-    admins: [{ ...ADMIN_SEED }],
-    audit: [],
-    settings: { ...SETTINGS_SEED },
-  }
-}
-
-/**
- * Fetch state from Supabase, with localStorage fallback.
- */
-async function loadFromSupabase() {
-  if (!supa) return null
-  try {
-    // Try to fetch the most recent state row
-    const response = await fetch(`${supa.url}/rest/v1/farewise_state?order=at.desc&limit=1`, {
-      headers: {
-        apikey: supa.key,
-        Authorization: `Bearer ${supa.key}`,
-        'Content-Type': 'application/json',
-      },
-    })
-    if (!response.ok) return null
-    const data = await response.json()
-    if (data && data.length > 0) {
-      return normaliseState(data[0])
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-/**
- * Save state to Supabase.
- */
-async function saveToSupabase(state) {
-  if (!supa) return false
-  try {
-    await fetch(`${supa.url}/rest/v1/farewise_state`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supa.key,
-        Authorization: `Bearer ${supa.key}`,
-      },
-      body: JSON.stringify({
-        ...state,
-        updatedAt: new Date().toISOString(),
-      }),
-    })
-    return true
-  } catch {
-    return false
-  }
-}
-
-function normaliseSession(input) {
-  const role = input?.role === 'admin' ? 'admin' : 'commuter'
-  return { userId: input?.userId || 'local-commuter', role }
-}
-
-/**
- * Coerce anything that claims to be a FareWise state into a complete v2 state.
- * Returns null when the shape is unusable, so callers can leave data untouched.
+ * Normalise raw DB row into a complete v2 state object.
+ * Exported so tests and admins can use it.
  */
 export function normaliseState(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null
@@ -111,7 +42,9 @@ export function normaliseState(input) {
 
   return {
     version: 2,
-    session: normaliseSession(input.session),
+    session: input.session && typeof input.session === 'object'
+      ? { userId: input.session.userId || 'local-commuter', role: input.session.role === 'admin' ? 'admin' : 'commuter' }
+      : seedSession(),
     matrix: input.matrix.filter((r) => r && typeof r === 'object').map(sanitizeRateRow),
     trips: Array.isArray(input.trips) ? input.trips : [],
     advisories: Array.isArray(input.advisories) ? input.advisories : [],
@@ -128,65 +61,99 @@ export function normaliseState(input) {
   }
 }
 
-function load() {
-  // Try Supabase first if configured
-  if (supa) {
-    const supaState = loadFromSupabase()
-    if (supaState) return supaState
-  }
-
+/**
+ * Load initial state from localStorage, or seed data.
+ * Synchronous — Supabase state is fetched on first commit if configured.
+ */
+export function initialState() {
   // Fall back to localStorage
-  try {
-    const raw = localStorage.getItem(KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      const normalised = normaliseState(parsed)
-      if (normalised) return normalised
-    }
-
-    const legacy = localStorage.getItem(LEGACY_KEY)
-    if (legacy) {
-      const migrated = normaliseState(JSON.parse(legacy))
-      if (migrated) {
-        try {
-          localStorage.setItem(KEY, JSON.stringify(migrated))
-          localStorage.removeItem(LEGACY_KEY)
-        } catch {
-          /* the first successful commit will retry the write */
-        }
-        return migrated
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('farewise.v2')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        const normalised = normaliseState(parsed)
+        if (normalised) return normalised
       }
+    } catch {
+      // pass
     }
-  } catch {
-    return initialState()
+    // Also try legacy v1 key
+    try {
+      const legacy = localStorage.getItem('farewise.v1')
+      if (legacy) {
+        const migrated = normaliseState(JSON.parse(legacy))
+        if (migrated) {
+          try {
+            localStorage.setItem('farewise.v2', JSON.stringify(migrated))
+          } catch {
+            // pass
+          }
+          localStorage.removeItem('farewise.v1')
+          return migrated
+        }
+      }
+    } catch {
+      // pass
+    }
   }
-  return initialState()
+
+  // Return seed data
+  return {
+    version: 2,
+    session: seedSession(),
+    matrix: FARE_MATRIX_SEED.map((r) => ({ ...r })),
+    trips: buildSeedTrips(),
+    advisories: ADVISORY_SEED.map((a) => ({ ...a })),
+    confirms: {},
+    admins: [{ ...ADMIN_SEED }],
+    audit: [],
+    settings: { ...SETTINGS_SEED },
+  }
 }
 
-let state = load()
+/**
+ * Save state to Supabase and/or localStorage.
+ * @param state - state object to persist
+ */
+async function saveToSupabase(state) {
+  if (!supa || !supa.configured) {
+    // Save to localStorage as fallback
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('farewise.v2', JSON.stringify(state))
+      } catch {
+        // pass
+      }
+    }
+    return
+  }
+  await fetch(`${supa.url}/rest/v1/farewise_state`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: supa.key,
+      Authorization: `Bearer ${supa.key}`,
+    },
+    body: JSON.stringify({
+      ...state,
+      updatedAt: new Date().toISOString(),
+    }),
+  })
+}
+
+/* ------------------------------------------------------------- state vars */
+
+let state = initialState()
 let storageError = null
 const listeners = new Set()
 
-function persist(next) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next))
-    storageError = null
-    // Also try Supabase if configured
-    if (supa) {
-      saveToSupabase(next).catch(() => {
-        // Supabase write failure is non-fatal for local demo
-      })
-    }
-    return true
-  } catch {
-    storageError = 'Changes are not being saved on this device. Export your data before closing.'
-    return false
-  }
-}
-
 function commit(next) {
   state = next
-  persist(next)
+  // Persist to Supabase or localStorage
+  saveToSupabase(next).catch(() => {
+    // Persistence failure is non-fatal for development
+  })
   listeners.forEach((l) => l())
 }
 
@@ -204,7 +171,7 @@ export function useStore() {
 
 export const getState = getSnapshot
 
-/** Persistent storage failure, for the banner in the shell. */
+/** Persistent storage error, for the banner in the shell. */
 export function useStorageError() {
   return useSyncExternalStore(subscribe, () => storageError, () => storageError)
 }
@@ -289,7 +256,6 @@ export const actions = {
     const row = state.matrix.find((r) => r.id === id)
     if (!row) return
     const remaining = state.matrix.filter((r) => r.id !== id)
-    // A store with no billable row cannot price anything. Keep the last one.
     if (billableRows(remaining).length === 0) return
     commit(
       withAudit(
