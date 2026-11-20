@@ -1,0 +1,38 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "env": {
+    "VITE_SUPABASE_URL": {
+      "value": ""
+    },
+    "VITE_SUPABASE_ANON_KEY": {
+      "value": ""
+    },
+    "VITE_ADMIN_DEMO": {
+      "value": "1"
+    },
+    "VITE_ADMIN_DEMO_PASSWORD": {
+      "value": "farewise-demo"
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}

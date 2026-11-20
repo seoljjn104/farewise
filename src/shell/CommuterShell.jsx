@@ -43,12 +43,11 @@ function TabLink({ tab, active, rail = false }) {
 }
 
 export default function CommuterShell({ view, children }) {
-  const { settings, session, advisories } = useStore()
+  const { settings, session } = useStore()
   const storageError = useStorageError()
   const role = roleById(settings.defaultRole)
   const current = COMMUTER_TABS.find((t) => t.id === view) || COMMUTER_TABS[0]
   const isAdmin = session.role === 'admin'
-  const pendingAlerts = advisories.filter((a) => a.status === 'published').length
 
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-ink-900">
@@ -119,6 +118,12 @@ export default function CommuterShell({ view, children }) {
             >
               MC
             </span>
+            <span
+              aria-label="Local profile"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-ink-700 text-[10.5px] font-bold text-fg-dim"
+            >
+              MC
+            </span>
           </div>
         </header>
 
@@ -145,9 +150,6 @@ export default function CommuterShell({ view, children }) {
             ))}
           </div>
         </nav>
-        {pendingAlerts > 0 && view !== 'alerts' && (
-          <span className="sr-only">{pendingAlerts} published alerts available</span>
-        )}
       </div>
     </div>
   )

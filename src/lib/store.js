@@ -1,11 +1,14 @@
 /**
- * Local-first data layer.
+ * Local-first data layer with Supabase synchronization.
  *
  * The schema mirrors the tables named in the project charter — `fare_matrices`,
  * `trip_ledger`, `advisories`, `admin_users`, `audit_log` — so the persistence
  * adapter can be swapped for a Supabase client without touching a single
  * component. For the localhost demo everything lives in localStorage, which
  * keeps the app free, offline-capable and dependent on nobody's account.
+ *
+ * When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in the environment,
+ * the store will synchronize state with Supabase instead of using localStorage.
  */
 import { useSyncExternalStore } from 'react'
 import { FARE_MATRIX_SEED, billableRows, sanitizeRateRow } from './fares.js'
@@ -17,6 +20,17 @@ const AUDIT_CAP = 200
 
 const seedSession = () => ({ userId: 'local-commuter', role: 'commuter' })
 
+// Supabase client initialization
+let supa = null
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+if (supabaseUrl && supabaseUrl !== 'your-supabase-project-url' && supabaseAnonKey && supabaseAnonKey !== 'your-supabase-anon-key') {
+  supa = { url: supabaseUrl, key: supabaseAnonKey }
+}
+
+/**
+ * Load initial state from Supabase or fall back to localStorage.
+ */
 export function initialState() {
   return {
     version: 2,
@@ -28,6 +42,55 @@ export function initialState() {
     admins: [{ ...ADMIN_SEED }],
     audit: [],
     settings: { ...SETTINGS_SEED },
+  }
+}
+
+/**
+ * Fetch state from Supabase, with localStorage fallback.
+ */
+async function loadFromSupabase() {
+  if (!supa) return null
+  try {
+    // Try to fetch the most recent state row
+    const response = await fetch(`${supa.url}/rest/v1/farewise_state?order=at.desc&limit=1`, {
+      headers: {
+        apikey: supa.key,
+        Authorization: `Bearer ${supa.key}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (!response.ok) return null
+    const data = await response.json()
+    if (data && data.length > 0) {
+      return normaliseState(data[0])
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Save state to Supabase.
+ */
+async function saveToSupabase(state) {
+  if (!supa) return false
+  try {
+    await fetch(`${supa.url}/rest/v1/farewise_state`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supa.key,
+        Authorization: `Bearer ${supa.key}`,
+      },
+      body: JSON.stringify({
+        ...state,
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -66,9 +129,20 @@ export function normaliseState(input) {
 }
 
 function load() {
+  // Try Supabase first if configured
+  if (supa) {
+    const supaState = loadFromSupabase()
+    if (supaState) return supaState
+  }
+
+  // Fall back to localStorage
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return normaliseState(JSON.parse(raw)) || initialState()
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      const normalised = normaliseState(parsed)
+      if (normalised) return normalised
+    }
 
     const legacy = localStorage.getItem(LEGACY_KEY)
     if (legacy) {
@@ -97,6 +171,12 @@ function persist(next) {
   try {
     localStorage.setItem(KEY, JSON.stringify(next))
     storageError = null
+    // Also try Supabase if configured
+    if (supa) {
+      saveToSupabase(next).catch(() => {
+        // Supabase write failure is non-fatal for local demo
+      })
+    }
     return true
   } catch {
     storageError = 'Changes are not being saved on this device. Export your data before closing.'
@@ -274,7 +354,7 @@ export const actions = {
     commit({ ...state, settings: { ...state.settings, ...patch } })
   },
 
-  /* -------------------------------------------------------------- session */
+  /* ------------------------------------------------------------- session */
   signInAdmin() {
     const at = new Date().toISOString()
     const admins = state.admins.map((a, i) => (i === 0 ? { ...a, lastLoginAt: at } : a))

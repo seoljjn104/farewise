@@ -5,15 +5,21 @@ export const COMMUTER_TABS = [
   { id: 'plan', label: 'Plan', icon: 'route', title: 'Plan a trip', sub: 'Route and fare' },
   { id: 'trips', label: 'Trips', icon: 'receipt', title: 'Your trips', sub: 'Every logged commute' },
   { id: 'budget', label: 'Budget', icon: 'wallet', title: 'Budget', sub: 'Allowance and spend' },
-  { id: 'alerts', label: 'Alerts', icon: 'bell', title: 'Alerts', sub: 'Commute notices' },
-  { id: 'more', label: 'More', icon: 'layers', title: 'More', sub: 'Settings and data' },
 ]
 
-const PANELS = new Set(['tariff', 'moderation', 'health', 'admins'])
+/** Admin navigation. */
+export const ADMIN_TABS = [
+  { id: 'tariff', label: 'Tariff', icon: 'sliders', title: 'Tariff rules', sub: 'Rate rows and audit' },
+  { id: 'moderation', label: 'Moderation', icon: 'shield', title: 'Moderate advisories', sub: 'Approve/reject pending' },
+  { id: 'health', label: 'Health', icon: 'gauge', title: 'Aggregate health', sub: 'Counts and status' },
+  { id: 'settings', label: 'Settings', icon: 'settings', title: 'Settings', sub: 'Appearance and data' },
+  { id: 'admins', label: 'Admins', icon: 'users', title: 'Admin roster', sub: 'Operator-provisioned accounts' },
+]
+
+const PANELS = new Set(['tariff', 'moderation', 'health', 'admins', 'settings'])
 
 const REDIRECTS = {
   ledger: '#/trips',
-  advisories: '#/alerts',
 }
 
 /**

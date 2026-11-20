@@ -8,6 +8,7 @@ import TariffPanel from './TariffPanel.jsx'
 import ModerationPanel from './ModerationPanel.jsx'
 import HealthPanel from './HealthPanel.jsx'
 import AdminsPanel from './AdminsPanel.jsx'
+import SettingsPanel from './SettingsPanel.jsx'
 
 /* Panels that exist. The nav renders from this list, so it cannot link to a
    screen the console does not ship. */
@@ -15,6 +16,7 @@ const PANELS = [
   { id: 'tariff', label: 'Tariff', icon: 'sliders', title: 'Tariff rules', sub: 'Rate rows and audit' },
   { id: 'moderation', label: 'Moderation', icon: 'shield', title: 'Moderate advisories', sub: 'Approve/reject pending' },
   { id: 'health', label: 'Health', icon: 'gauge', title: 'Aggregate health', sub: 'Counts and status' },
+  { id: 'settings', label: 'Settings', icon: 'settings', title: 'Settings', sub: 'Appearance and data' },
   { id: 'admins', label: 'Admins', icon: 'users', title: 'Admin roster', sub: 'Operator-provisioned accounts' },
 ]
 
@@ -25,6 +27,7 @@ const PANEL_COMPONENTS = {
   tariff: TariffPanel,
   moderation: ModerationPanel,
   health: HealthPanel,
+  settings: SettingsPanel,
   admins: AdminsPanel,
 }
 

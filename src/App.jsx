@@ -4,7 +4,6 @@ import CommuterShell from './shell/CommuterShell.jsx'
 import Plan from './views/Plan.jsx'
 import Trips from './views/Trips.jsx'
 import Budget from './views/Budget.jsx'
-import Alerts from './views/Alerts.jsx'
 import More from './views/More.jsx'
 
 /* Admin code is a separate chunk. It must never enter the commuter bundle. */
@@ -55,7 +54,6 @@ function BootScreen() {
 function CommuterView({ view }) {
   if (view === 'trips') return <Trips />
   if (view === 'budget') return <Budget onOpenPlanner={() => navigate('#/plan')} />
-  if (view === 'alerts') return <Alerts />
   if (view === 'more') return <More />
   return <Plan onOpenBudget={() => navigate('#/budget')} />
 }

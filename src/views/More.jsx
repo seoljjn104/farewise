@@ -9,8 +9,6 @@ import Icon from '../components/Icon.jsx'
 import PlaceInput from '../components/PlaceInput.jsx'
 import { Badge, Btn, Field, Select } from '../components/ui.jsx'
 
-const ADMIN_DEMO = import.meta.env.VITE_ADMIN_DEMO === '1'
-
 const placeById = (id) => places.find((p) => p.id === id) || null
 
 function Panel({ title, hint, children }) {
@@ -236,25 +234,9 @@ export default function More() {
         </Btn>
       </section>
 
-      {ADMIN_DEMO && (
-        <a
-          href="#/admin/login"
-          className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-ink-850 px-4 py-3.5 transition-colors hover:bg-ink-800"
-        >
-          <span className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#4a3c10] bg-[#2a2109] text-signal">
-              <Icon name="shield" size={16} />
-            </span>
-            <span>
-              <span className="block text-[12.5px] font-semibold text-fg">Admin console</span>
-              <span className="block text-[11px] text-muted">
-                Separate sign-in for administrators
-              </span>
-            </span>
-          </span>
-          <Icon name="chevronDown" size={15} className="-rotate-90 text-muted" />
-        </a>
-      )}
+      {/* Admin console entry point is managed by the AdminApp boundary.
+          Do not expose it from the commuter/More view so that regular users
+          cannot reach the admin gate through the UI. */}
 
       <p className="px-1 pb-2 text-center text-[11px] text-faint">FareWise local demo</p>
     </div>

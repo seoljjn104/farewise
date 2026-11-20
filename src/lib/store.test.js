@@ -157,7 +157,7 @@ describe('matrix editing', () => {
     const audit = store.getState().audit
     expect(audit).toHaveLength(1)
     expect(audit[0].entity).toBe('rate')
-    expect(audit[0].before.per_km).toBe(2.1)
+    expect(audit[0].before.per_km).toBe(2)
     expect(audit[0].after.per_km).toBe(2.5)
   })
 

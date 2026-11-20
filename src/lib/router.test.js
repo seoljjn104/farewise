@@ -12,16 +12,19 @@ describe('parseHash', () => {
     expect(parseHash('#/plan')).toEqual({ kind: 'commuter', view: 'plan' })
     expect(parseHash('#/trips')).toEqual({ kind: 'commuter', view: 'trips' })
     expect(parseHash('#/budget')).toEqual({ kind: 'commuter', view: 'budget' })
-    expect(parseHash('#/alerts')).toEqual({ kind: 'commuter', view: 'alerts' })
-    expect(parseHash('#/more')).toEqual({ kind: 'commuter', view: 'more' })
+    expect(parseHash('#/more')).toEqual({ kind: 'commuter', view: 'plan' })
   })
 
   it('redirects the retired ledger hash', () => {
     expect(parseHash('#/ledger')).toEqual({ kind: 'redirect', to: '#/trips' })
   })
 
-  it('redirects the retired advisories hash', () => {
-    expect(parseHash('#/advisories')).toEqual({ kind: 'redirect', to: '#/alerts' })
+  it('redirects the retired ledger hash', () => {
+    expect(parseHash('#/ledger')).toEqual({ kind: 'redirect', to: '#/trips' })
+  })
+
+  it('unknown commuter hash falls through to plan', () => {
+    expect(parseHash('#/advisories')).toEqual({ kind: 'commuter', view: 'plan' })
   })
 
   it('sends an unknown commuter hash home without a redirect', () => {
@@ -56,13 +59,11 @@ describe('parseHash', () => {
     expect(parseHash('#/admin/login/')).toEqual({ kind: 'adminLogin' })
   })
 
-  it('exposes the five commuter tabs in order', () => {
+  it('exposes the four commuter tabs in order', () => {
     expect(COMMUTER_TABS.map((t) => t.id)).toEqual([
       'plan',
       'trips',
       'budget',
-      'alerts',
-      'more',
     ])
   })
 })
